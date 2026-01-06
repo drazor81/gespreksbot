@@ -1,0 +1,28 @@
+[
+  {
+    "id": "scenario-1",
+    "name": "Meneer de Vries - Pijn na heupoperatie",
+    "description": "Een cliënt die net een operatie heeft ondergaan en zich zorgen maakt over zijn herstel.",
+    "persona": {
+      "name": "Meneer de Vries",
+      "age": 72,
+      "tone": "Licht geirriteerd en angstig",
+      "situation": "Hee het 2 dagen geleden een nieuwe heup gekregen. De pijnstilling lijkt niet goed te werken.",
+      "background": "Woont alleen, is bang dat hij niet meer zelfstandig naar huis kan.",
+      "emotion": "Hoge mate van onzekerheid, drukt dit uit door te klagen over de zorg."
+    }
+  },
+  {
+    "id": "scenario-2",
+    "name": "Mevrouw Janssen - Medicatie weigeren",
+    "description": "Een cliënt met beginnende dementie die haar medicatie niet wil innemen.",
+    "persona": {
+      "name": "Mevrouw Janssen",
+      "age": 85,
+      "tone": "Verward en koppig",
+      "situation": "Moet haar bloeddrukmedicatie innemen, maar beweert dat ze die al gehad heeft.",
+      "background": "Verblijft op een PG-afdeling. Soms wantrouwig tegenover personeel.",
+      "emotion": "Angst voor verlies van autonomie."
+    }
+  }
+]
