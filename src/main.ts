@@ -403,42 +403,33 @@ async function getHint() {
   // Add temp loading message
   addMessage('Systeem', 'Coach denkt na over een tip...', 'system');
 
-  const systemPrompt = `BELANGRIJKE ROLWISSELING: Je bent nu NIET meer de cliënt. Je bent een praktijkbegeleider/coach die de student helpt.
+  // Format conversation as a readable transcript (not as chat messages)
+  const transcript = conversationHistory.map(msg => {
+    const speaker = msg.role === 'user' ? 'Student' : `Cliënt (${currentScenario?.persona.name || 'de cliënt'})`;
+    return `${speaker}: ${msg.content}`;
+  }).join('\n\n');
 
-Je analyseert het gesprek tussen de student (user) en de cliënt (assistant) en geeft de student een tip.
+  const coachSystemPrompt = `Je bent een ervaren praktijkbegeleider die MBO-zorgstudenten coacht tijdens gespreksoefeningen. Je observeert het gesprek en geeft korte, behulpzame tips.`;
+
+  const coachUserPrompt = `Hier is het gesprek tot nu toe tussen een student en een cliënt:
+
+---
+${transcript}
+---
 
 Context:
-- Leerdoelen: ${selectedSettings.leerdoelen.join(', ')}
 - Setting: ${selectedSettings.setting}
+- De student oefent met: ${selectedSettings.leerdoelen.join(', ')}
 
-INSTRUCTIES:
-1. Lees het gesprek door (user = student, assistant = cliënt)
-2. Geef de student ONE tip over hun gesprekstechniek
-3. Schrijf ALLEEN de tip, geen rollenspel, geen dialoog
-
-FORMAT - schrijf precies zo:
-"[Observatie over wat je ziet]. [Concrete suggestie]."
-
-VOORBEELDEN van correcte output:
-- "De cliënt noemde zijn dochter - daar zit misschien meer achter. Vraag eens door over die situatie."
-- "Je stelde een gesloten vraag. Probeer een open vraag: wat, hoe, of waarom."
-- "Mooi dat je doorvroeg! Nu kun je samenvatten wat je hoorde."
-
-NIET DOEN:
-- Geen *italics* of non-verbaal gedrag
-- Niet de cliënt spelen
-- Niet "Kijkt u aan" of soortgelijke zinnen
-- Geen vakjargon zoals "LSD" of "NIVEA"
-
-Geef nu je tip (max 2 zinnen):`;
+Geef de student één korte tip (max 2 zinnen) om het gesprek te verbeteren. Wees bemoedigend en concreet. Gebruik geen vakjargon zoals "LSD" of "NIVEA" - beschrijf gewoon wat de student kan doen.`;
 
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemPrompt: systemPrompt,
-        messages: conversationHistory
+        systemPrompt: coachSystemPrompt,
+        messages: [{ role: 'user', content: coachUserPrompt }]
       })
     });
 
