@@ -393,6 +393,13 @@ async function getHint() {
   const hintBtn = document.querySelector('#hint-btn') as HTMLButtonElement;
   if (hintBtn) hintBtn.disabled = true;
 
+  // Check if there's a conversation to give hints about
+  if (conversationHistory.length === 0) {
+    addMessage('Coach', '💡 Begin eerst het gesprek met de cliënt, dan kan ik je tips geven!', 'meta');
+    if (hintBtn) hintBtn.disabled = false;
+    return;
+  }
+
   // Add temp loading message
   addMessage('Systeem', 'Coach denkt na over een tip...', 'system');
 
@@ -453,6 +460,7 @@ Maximaal 2 zinnen.`;
     if (lastMessage && lastMessage.textContent?.includes('Coach denkt na')) {
       lastMessage.remove();
     }
+    addMessage('Systeem', 'Kon geen verbinding maken met de coach. Probeer het opnieuw.', 'system');
   } finally {
     if (hintBtn) hintBtn.disabled = false;
   }
