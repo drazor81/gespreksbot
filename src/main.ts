@@ -27,7 +27,7 @@ const scenarios: Scenario[] = personasData;
 let currentScenario: Scenario | null = null;
 
 const SETTINGS_OPTIONS = {
-  setting: ["Verpleeghuis", "Thuiszorg", "Ziekenhuis", "GGZ", "Gehandicaptenzorg", "Huisartsenpraktijk", "Openbare ruimte"],
+  setting: ["Verpleeghuis", "Thuiszorg", "Ziekenhuis", "GGZ", "Gehandicaptenzorg", "Huisartsenpraktijk"],
   scenarioType: [
     { value: "Intake", label: "Intake – Kennismakingsgesprek met nieuwe cliënt" },
     { value: "Rapportage", label: "Rapportage – Overdracht van zorginformatie (SBAR)" },
