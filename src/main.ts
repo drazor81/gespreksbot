@@ -403,32 +403,34 @@ async function getHint() {
   // Add temp loading message
   addMessage('Systeem', 'Coach denkt na over een tip...', 'system');
 
-  const systemPrompt = `Je bent een ervaren praktijkbegeleider die naast de student staat tijdens dit oefengesprek.
+  const systemPrompt = `BELANGRIJKE ROLWISSELING: Je bent nu NIET meer de cliënt. Je bent een praktijkbegeleider/coach die de student helpt.
 
-De student oefent nu met: ${selectedSettings.leerdoelen.join(', ')}
-Setting: ${selectedSettings.setting}
-Cliënt: ${currentScenario?.persona.name || 'de cliënt'}
+Je analyseert het gesprek tussen de student (user) en de cliënt (assistant) en geeft de student een tip.
 
-Kijk naar het laatste wat de student zei. Geef een korte, warme tip alsof je even naast ze staat en fluistert:
+Context:
+- Leerdoelen: ${selectedSettings.leerdoelen.join(', ')}
+- Setting: ${selectedSettings.setting}
 
-**Wat je NIET doet:**
-- Geen vakjargon ("Pas LSD toe", "Gebruik NIVEA")
-- Geen letterlijke zinnen voorzeggen
-- Geen oordeel ("Dat was fout")
-- Geen lange uitleg
+INSTRUCTIES:
+1. Lees het gesprek door (user = student, assistant = cliënt)
+2. Geef de student ONE tip over hun gesprekstechniek
+3. Schrijf ALLEEN de tip, geen rollenspel, geen dialoog
 
-**Wat je WEL doet:**
-- Benoem kort wat je ziet in het gesprek
-- Geef één concrete suggestie voor de volgende zin
-- Wees bemoedigend
+FORMAT - schrijf precies zo:
+"[Observatie over wat je ziet]. [Concrete suggestie]."
 
-**Voorbeelden:**
-- "De cliënt lijkt iets achter te houden. Wat zou er nog meer spelen?"
-- "Je stelde veel vragen achter elkaar. Probeer eens samen te vatten wat je tot nu toe hoorde."
-- "Mooie vraag! Durf nu even stil te zijn en te wachten."
-- "De cliënt zei 'niemand luistert'. Daar zit misschien meer achter."
+VOORBEELDEN van correcte output:
+- "De cliënt noemde zijn dochter - daar zit misschien meer achter. Vraag eens door over die situatie."
+- "Je stelde een gesloten vraag. Probeer een open vraag: wat, hoe, of waarom."
+- "Mooi dat je doorvroeg! Nu kun je samenvatten wat je hoorde."
 
-Maximaal 2 zinnen.`;
+NIET DOEN:
+- Geen *italics* of non-verbaal gedrag
+- Niet de cliënt spelen
+- Niet "Kijkt u aan" of soortgelijke zinnen
+- Geen vakjargon zoals "LSD" of "NIVEA"
+
+Geef nu je tip (max 2 zinnen):`;
 
   try {
     const response = await fetch(API_URL, {
