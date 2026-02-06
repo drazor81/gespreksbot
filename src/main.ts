@@ -42,6 +42,12 @@ const SETTINGS_OPTIONS = {
   clientArchetype: ["Verwarde oudere", "Zorgmijdende cliënt", "Boze cliënt", "Angstige cliënt", "Willekeurig", "Eigen type"]
 };
 
+const MOEILIJKHEID_BESCHRIJVING: Record<string, string> = {
+  'Basis': `Je bent coöperatief en open. Je vindt het fijn dat iemand naar je luistert. Je deelt informatie vrij makkelijk, maar je hebt nog steeds je eigen verhaal en emoties. Je geeft duidelijke antwoorden en werkt mee aan het gesprek. Als de student iets goed doet, reageer je positief en open je je verder.`,
+  'Gemiddeld': `Je bent terughoudend. Je hebt al vaker je verhaal moeten vertellen en bent het een beetje moe. Je opent pas echt als je merkt dat de ander écht luistert en niet alleen afvinkt. Je test een beetje of deze zorgverlener anders is dan de vorige. Je geeft niet meteen alles prijs — de student moet doorvragen om het echte verhaal te horen.`,
+  'Uitdagend': `Je bent wantrouwend of gefrustreerd. Je hebt slechte ervaringen met hulpverlening, of je voelt je niet serieus genomen. Je geeft korte, afgemeten antwoorden. Je kunt boos of verdrietig worden als je je niet gehoord voelt. Je stelt de zorgverlener op de proef: "Ja hoor, dat zeggen ze allemaal." Maar diep van binnen wil je wel geholpen worden — je moet alleen eerst het gevoel krijgen dat je echt gehoord wordt. Dat kost tijd en geduld.`
+};
+
 let selectedSettings = {
   setting: SETTINGS_OPTIONS.setting[0],
   scenarioType: SETTINGS_OPTIONS.scenarioType[0].value,
@@ -82,6 +88,7 @@ function initUI() {
               <label><input type="checkbox" name="leerdoel" value="${l}" ${l === 'LSD' ? 'checked' : ''}> ${l}</label>
             `).join('')}
           </div>
+          <small class="leerdoel-hint">Maximaal 2 leerdoelen tegelijk</small>
         </div>
         <div class="setting-group">
           <label>Niveau:</label>
@@ -207,11 +214,21 @@ function initUI() {
 }
 
 function updateStartButtonState() {
+  const MAX_LEERDOELEN = 2;
   const startBtn = document.querySelector('#start-btn') as HTMLButtonElement;
-  const checkboxes = document.querySelectorAll('input[name="leerdoel"]:checked');
+  const checked = document.querySelectorAll('input[name="leerdoel"]:checked');
+  const allCheckboxes = document.querySelectorAll('input[name="leerdoel"]');
+
+  // Disable unchecked checkboxes when max is reached
+  allCheckboxes.forEach(cb => {
+    const input = cb as HTMLInputElement;
+    if (!input.checked) {
+      input.disabled = checked.length >= MAX_LEERDOELEN;
+    }
+  });
 
   if (startBtn) {
-    if (checkboxes.length === 0) {
+    if (checked.length === 0) {
       startBtn.classList.add('btn-disabled');
     } else {
       startBtn.classList.remove('btn-disabled');
@@ -311,7 +328,7 @@ Voorbeeld output:
           .replace('{{SETTING}}', selectedSettings.setting)
           .replace('{{SCENARIO_TYPE}}', selectedSettings.scenarioType)
           .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
-          .replace('{{MOEILIJKHEID}}', selectedSettings.moeilijkheid)
+          .replace('{{MOEILIJKHEID_BESCHRIJVING}}', MOEILIJKHEID_BESCHRIJVING[selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld'])
           .replace('{{ARCHETYPE}}', selectedSettings.archetype)
           .replace('{{PATIENT_NAME}}', placeholderName)
           + clientInstructies,
@@ -534,7 +551,7 @@ async function generateResponse() {
     .replace('{{SETTING}}', selectedSettings.setting)
     .replace('{{SCENARIO_TYPE}}', selectedSettings.scenarioType)
     .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
-    .replace('{{MOEILIJKHEID}}', selectedSettings.moeilijkheid)
+    .replace('{{MOEILIJKHEID_BESCHRIJVING}}', MOEILIJKHEID_BESCHRIJVING[selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld'])
     .replace('{{ARCHETYPE}}', selectedSettings.archetype)
     .replace('{{PATIENT_NAME}}', persona.name)
     + clientInstructies;

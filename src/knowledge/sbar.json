@@ -1,6 +1,6 @@
 {
   "id": "SBAR",
-  "naam": "SBAR: Gestructureerde Communicatie",
+  "naam": "SBAR: gestructureerde communicatie",
   "korteUitleg": "Een methode voor duidelijke, veilige overdracht tussen zorgverleners. Situation, Background, Assessment, Recommendation.",
   "uitgebreideTheorie": "SBAR is ontwikkeld in de Amerikaanse marine en luchtvaart, waar miscommunicatie fatale gevolgen kan hebben. De methode is overgenomen in de gezondheidszorg om overdrachten veiliger te maken.\n\n**Situation:** Begin met de kern. Wie is de patiënt en wat is er NU aan de hand?\n\n**Background:** Geef relevante context. Voorgeschiedenis, huidige behandeling, allergieën.\n\n**Assessment:** Wat heb je zelf geobserveerd en gemeten? Vitale functies, pijnscore, gedrag.\n\n**Recommendation:** Wat denk je dat er moet gebeuren? Wat vraag je van de ander?\n\nSBAR dwingt je om gestructureerd te denken en te communiceren. Het voorkomt dat je afdwaalt of belangrijke informatie vergeet. Gebruik het bij overdrachten, telefonisch contact met artsen, of in spoedsituaties.",
   "technieken": {

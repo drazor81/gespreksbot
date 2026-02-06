@@ -444,8 +444,24 @@ header button:hover {
   font-weight: bold;
 }
 
-.checkbox-group input[type="checkbox"]:hover {
+.checkbox-group input[type="checkbox"]:hover:not(:disabled) {
   border-color: var(--primary);
+}
+
+.checkbox-group input[type="checkbox"]:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.checkbox-group label:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.leerdoel-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
 }
 
 /* Start Button - Primary Orange */

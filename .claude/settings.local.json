@@ -7,7 +7,11 @@
       "Bash(npm run build:*)",
       "Bash(npm start)",
       "Bash(npm run dev:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(xargs ls:*)",
+      "Bash(npx vite:*)"
     ]
   }
 }
