@@ -86,4 +86,23 @@ ${k.voorbeeldenFout.map(v => `- ${v}`).join('\n')}`;
   return context;
 }
 
+// Haal theorie op voor geselecteerde leerdoelen (voor student weergave)
+export function getTheorieVoorStudent(leerdoelen: string[]): string {
+  const kennis = getKennisVoorLeerdoelen(leerdoelen);
+  if (kennis.length === 0) return 'Geen theorie beschikbaar voor de geselecteerde leerdoelen.';
+
+  return kennis.map(k => {
+    let theorie = `## ${k.naam}\n\n${k.korteUitleg}`;
+
+    if (k.uitgebreideTheorie) {
+      theorie += `\n\n${k.uitgebreideTheorie}`;
+    }
+
+    theorie += `\n\n**Voorbeelden van goede zinnen:**\n${k.voorbeeldenGoed.map(v => `- ${v}`).join('\n')}`;
+    theorie += `\n\n**Dit moet je vermijden:**\n${k.voorbeeldenFout.map(v => `- ${v}`).join('\n')}`;
+
+    return theorie;
+  }).join('\n\n---\n\n');
+}
+
 export default kennisbank;

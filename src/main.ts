@@ -1,7 +1,7 @@
 import './style.css'
 import personasData from '../personas.json'
 import { SYSTEM_PROMPT_MBO_V2 } from './prompts/system-prompt'
-import { getClientInstructies, getCoachContext } from './knowledge'
+import { getClientInstructies, getCoachContext, getTheorieVoorStudent } from './knowledge'
 
 interface Persona {
   name: string;
@@ -113,9 +113,19 @@ function initUI() {
     <div id="chat-container" style="display: none;"></div>
     <form id="input-area" style="display: none;">
       <input type="text" id="user-input" placeholder="Typ je bericht..." autocomplete="off">
+      <button type="button" id="theory-btn" title="Bekijk theorie">📚</button>
       <button type="button" id="hint-btn" title="Vraag een tip">💡</button>
       <button type="submit">Verstuur</button>
     </form>
+    <div id="theory-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>📚 Theorie</h2>
+          <button id="close-theory-btn" class="close-btn">&times;</button>
+        </div>
+        <div id="theory-content" class="modal-body"></div>
+      </div>
+    </div>
   `
 
   document.querySelector('#start-btn')?.addEventListener('click', () => {
@@ -169,6 +179,21 @@ function initUI() {
 
   document.querySelector('#hint-btn')?.addEventListener('click', () => {
     getHint();
+  });
+
+  document.querySelector('#theory-btn')?.addEventListener('click', () => {
+    showTheory();
+  });
+
+  document.querySelector('#close-theory-btn')?.addEventListener('click', () => {
+    closeTheory();
+  });
+
+  // Close modal when clicking outside
+  document.querySelector('#theory-modal')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).id === 'theory-modal') {
+      closeTheory();
+    }
   });
 
   document.querySelector('#reset-btn')?.addEventListener('click', () => {
@@ -343,6 +368,29 @@ function prepareChat() {
   document.querySelector<HTMLDivElement>('#setup-screen')!.style.display = 'none';
   document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'flex';
   document.querySelector<HTMLFormElement>('#input-area')!.style.display = 'flex';
+}
+
+function showTheory() {
+  const theorie = getTheorieVoorStudent(selectedSettings.leerdoelen);
+  const modal = document.querySelector('#theory-modal') as HTMLDivElement;
+  const content = document.querySelector('#theory-content') as HTMLDivElement;
+
+  // Convert markdown-like formatting to HTML
+  const htmlContent = theorie
+    .replace(/## (.*)/g, '<h3>$1</h3>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n- /g, '<br>• ')
+    .replace(/\n\n---\n\n/g, '<hr>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+
+  content.innerHTML = htmlContent;
+  modal.style.display = 'flex';
+}
+
+function closeTheory() {
+  const modal = document.querySelector('#theory-modal') as HTMLDivElement;
+  modal.style.display = 'none';
 }
 
 function handleSendMessage() {
