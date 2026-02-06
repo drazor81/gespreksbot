@@ -1,0 +1,31 @@
+{
+  "id": "SBAR",
+  "naam": "SBAR: Gestructureerde Communicatie",
+  "korteUitleg": "Een methode voor duidelijke, veilige overdracht tussen zorgverleners. Situation, Background, Assessment, Recommendation.",
+  "technieken": {
+    "situation": "Wie is de cliënt en wat is het probleem nu?",
+    "background": "Relevante voorgeschiedenis en context.",
+    "assessment": "Wat zijn je observaties en metingen?",
+    "recommendation": "Wat stel je voor of wat heb je nodig?"
+  },
+  "voorbeeldenGoed": [
+    "\"Meneer Jansen, 78 jaar, klaagt over pijn op de borst sinds een uur.\"",
+    "\"Hij heeft een voorgeschiedenis van hartproblemen.\"",
+    "\"Zijn bloeddruk is 160/95, hij zweet en is onrustig.\"",
+    "\"Ik denk dat we de arts moeten bellen.\""
+  ],
+  "voorbeeldenFout": [
+    "Ongestructureerd verhaal zonder duidelijke kern",
+    "Belangrijke informatie vergeten of door elkaar vertellen",
+    "Geen concrete observaties of metingen noemen"
+  ],
+  "clientReactie": {
+    "bijGoed": "Je voelt je veilig omdat de zorgverlener gestructureerd en professioneel communiceert. Je hebt vertrouwen dat de juiste informatie wordt doorgegeven.",
+    "bijFout": "Je wordt onrustig omdat de zorgverlener chaotisch overkomt. Je vraagt je af of ze wel weten wat ze doen. 'Begrijpt u het wel?'"
+  },
+  "coachTips": [
+    "Let op of de student de SBAR-structuur volgt",
+    "Check of alle vier de onderdelen worden benoemd",
+    "Kijk of de student concrete observaties en metingen noemt"
+  ]
+}

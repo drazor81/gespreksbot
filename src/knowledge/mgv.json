@@ -1,0 +1,30 @@
+{
+  "id": "MGV",
+  "naam": "Motiverende Gespreksvoering (MGV)",
+  "korteUitleg": "Een cliëntgerichte methode om intrinsieke motivatie tot gedragsverandering te versterken.",
+  "technieken": {
+    "openVragen": "Stel vragen die uitnodigen tot nadenken en praten",
+    "affirmeren": "Bevestig de krachten en inspanningen van de cliënt",
+    "reflecteren": "Geef terug wat de cliënt zegt om ambivalentie te verkennen",
+    "samenvatten": "Structuur aanbrengen en verandertaal benadrukken"
+  },
+  "voorbeeldenGoed": [
+    "\"Wat zou er voor u veranderen als u zou stoppen met roken?\"",
+    "\"Het klinkt alsof u er al veel over heeft nagedacht.\"",
+    "\"Aan de ene kant wilt u afvallen, aan de andere kant vindt u het moeilijk...\""
+  ],
+  "voorbeeldenFout": [
+    "\"U moet echt stoppen met roken.\"",
+    "\"Waarom doet u niet gewoon wat de dokter zegt?\"",
+    "\"Als u niet verandert, wordt u alleen maar zieker.\""
+  ],
+  "clientReactie": {
+    "bijGoed": "Je gaat zelf nadenken over verandering. Je noemt voordelen van verandering. Je voelt je begrepen in je twijfel.",
+    "bijFout": "Je gaat in de weerstand: 'Ja maar...', 'Dat kan ik niet', 'U begrijpt het niet'. Je sluit je af voor verandering."
+  },
+  "coachTips": [
+    "Let op of de student 'moetjes' vermijdt",
+    "Check of de student de ambivalentie van de cliënt erkent",
+    "Kijk of de student verandertaal uitlokt in plaats van afdwingt"
+  ]
+}

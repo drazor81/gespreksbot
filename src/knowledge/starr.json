@@ -1,0 +1,33 @@
+{
+  "id": "STARR",
+  "naam": "STARR-Methode: Reflectie",
+  "korteUitleg": "Een methode om te reflecteren op eigen handelen: Situatie, Taak, Actie, Resultaat, Reflectie.",
+  "technieken": {
+    "situatie": "Wat was de situatie? Beschrijf de context.",
+    "taak": "Wat was jouw taak of rol in deze situatie?",
+    "actie": "Wat heb je precies gedaan?",
+    "resultaat": "Wat was het resultaat van je actie?",
+    "reflectie": "Wat leer je hiervan? Wat zou je anders doen?"
+  },
+  "voorbeeldenGoed": [
+    "\"Kunt u me vertellen wat er precies gebeurde?\"",
+    "\"Wat was uw rol op dat moment?\"",
+    "\"Wat deed u toen?\"",
+    "\"Hoe liep dat af?\"",
+    "\"Als u terugkijkt, wat zou u anders doen?\""
+  ],
+  "voorbeeldenFout": [
+    "Alleen vragen wat er gebeurde zonder door te vragen op actie en reflectie",
+    "De cliënt niet de ruimte geven om zelf na te denken",
+    "Te snel conclusies trekken over wat de cliënt had moeten doen"
+  ],
+  "clientReactie": {
+    "bijGoed": "Je voelt je geholpen om na te denken over je eigen handelen. Je komt zelf tot inzichten.",
+    "bijFout": "Je voelt je ondervraagd of beoordeeld. Je wordt defensief over je keuzes."
+  },
+  "coachTips": [
+    "Let op of de student alle STARR-onderdelen doorloopt",
+    "Check of de student de cliënt zelf laat reflecteren",
+    "Kijk of de student open vragen stelt over elke fase"
+  ]
+}

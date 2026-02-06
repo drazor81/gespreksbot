@@ -1,0 +1,29 @@
+{
+  "id": "LSD",
+  "naam": "LSD: Luisteren, Samenvatten, Doorvragen",
+  "korteUitleg": "De basis van elk goed gesprek. Laat zien dat je luistert, check of je het begrepen hebt, en vraag door voor meer diepgang.",
+  "technieken": {
+    "luisteren": "Actief luisteren naar woorden én lichaamstaal. Niet onderbreken, ruimte geven.",
+    "samenvatten": "In eigen woorden herhalen wat de ander zei. 'Als ik het goed begrijp...'",
+    "doorvragen": "Open vragen stellen: wie, wat, waar, wanneer, hoe, waarom."
+  },
+  "voorbeeldenGoed": [
+    "\"Als ik het goed begrijp, maakt u zich vooral zorgen over...\"",
+    "\"Hoe bedoelt u dat precies?\"",
+    "\"Wat betekent dat voor u?\""
+  ],
+  "voorbeeldenFout": [
+    "Alleen ja/nee vragen stellen",
+    "Onderbreken voordat de cliënt is uitgepraat",
+    "Meteen doorvragen zonder eerst samen te vatten"
+  ],
+  "clientReactie": {
+    "bijGoed": "Je voelt je gehoord. Je opent je meer, deelt diepere gevoelens of details die je eerst niet wilde zeggen.",
+    "bijFout": "Je voelt je niet gehoord. Je geeft kortere antwoorden, sluit je af, of herhaalt jezelf omdat je denkt dat de ander niet luistert."
+  },
+  "coachTips": [
+    "Let op of de student open vragen stelt (wie/wat/hoe) of alleen gesloten vragen (ja/nee)",
+    "Check of de student samenvat voordat die doorvraagt",
+    "Kijk of de student de cliënt laat uitpraten"
+  ]
+}

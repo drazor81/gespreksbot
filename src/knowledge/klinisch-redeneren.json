@@ -1,0 +1,32 @@
+{
+  "id": "Klinisch Redeneren",
+  "naam": "Klinisch Redeneren (6 stappen)",
+  "korteUitleg": "Het proces waarbij je observaties koppelt aan kennis om tot een verpleegkundige diagnose en beleid te komen.",
+  "technieken": {
+    "stap1": "Oriëntatie: Verzamelen van gegevens (anamnese, observaties)",
+    "stap2": "Probleemstelling: Vaststellen van de belangrijkste problemen",
+    "stap3": "Aanvullend onderzoek: Welke info ontbreekt nog?",
+    "stap4": "Beleid: Wat gaan we doen? (interventies)",
+    "stap5": "Verloop: Wat verwachten we dat er gebeurt?",
+    "stap6": "Evaluatie: Heeft het beleid gewerkt?"
+  },
+  "voorbeeldenGoed": [
+    "Systematisch vragen stellen om informatie te verzamelen",
+    "Observaties koppelen aan mogelijke oorzaken",
+    "Doorvragen naar details die nog ontbreken"
+  ],
+  "voorbeeldenFout": [
+    "Te snel conclusies trekken zonder voldoende informatie",
+    "Belangrijke observaties missen of negeren",
+    "Geen verband leggen tussen klachten en mogelijke oorzaken"
+  ],
+  "clientReactie": {
+    "bijGoed": "Je voelt je serieus genomen. De zorgverlener stelt gerichte vragen en lijkt te begrijpen wat er aan de hand is.",
+    "bijFout": "Je hebt het gevoel dat de zorgverlener maar wat doet. Je wordt onzeker: 'Weet u wel wat er aan de hand is?'"
+  },
+  "coachTips": [
+    "Let op of de student systematisch informatie verzamelt",
+    "Check of de student observaties koppelt aan mogelijke problemen",
+    "Kijk of de student doorvraagt bij onduidelijkheden"
+  ]
+}

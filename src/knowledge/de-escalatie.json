@@ -1,0 +1,31 @@
+{
+  "id": "De-escalatie",
+  "naam": "De-escalerend Communiceren",
+  "korteUitleg": "Technieken om spanning en agressie te verminderen en weer in gesprek te komen.",
+  "technieken": {
+    "ruimteGeven": "Laat de ander uitpraten, onderbreek niet",
+    "rustigBlijven": "Blijf kalm, praat langzaam en met lage stem",
+    "erkennen": "Erken de emotie zonder het gedrag goed te keuren",
+    "grenzen": "Geef grenzen aan op een rustige, duidelijke manier"
+  },
+  "voorbeeldenGoed": [
+    "\"Ik zie dat u boos bent. Dat begrijp ik.\"",
+    "\"Ik wil u graag helpen. Kunt u me vertellen wat er is gebeurd?\"",
+    "\"Ik merk dat dit moeilijk voor u is. Laten we even rustig kijken...\""
+  ],
+  "voorbeeldenFout": [
+    "\"Kalmeert u eens even!\"",
+    "\"U hoeft niet zo te schreeuwen.\"",
+    "\"Als u zo doet, kan ik u niet helpen.\"",
+    "\"Dat is uw eigen schuld.\""
+  ],
+  "clientReactie": {
+    "bijGoed": "Je voelt je gehoord ondanks je boosheid. Je kalmeert langzaam. Je bent bereid om te praten.",
+    "bijFout": "Je escaleert verder. Je wordt bozer of verdrietiger. Je voelt je niet serieus genomen. 'Zie je wel, niemand luistert!'"
+  },
+  "coachTips": [
+    "Let op of de student de emotie erkent zonder te oordelen",
+    "Check of de student rustig blijft en niet mee-escaleert",
+    "Kijk of de student ruimte geeft en niet in de verdediging schiet"
+  ]
+}

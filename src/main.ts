@@ -1,6 +1,7 @@
 import './style.css'
 import personasData from '../personas.json'
 import { SYSTEM_PROMPT_MBO_V2 } from './prompts/system-prompt'
+import { getClientInstructies, getCoachContext } from './knowledge'
 
 interface Persona {
   name: string;
@@ -273,6 +274,9 @@ Voorbeeld output:
 [NAAM: Mevrouw van Dam]
 *Kijkt op vanuit de stoel* Goedemorgen... ben ik eindelijk aan de beurt?`;
 
+  // Haal kennis op voor geselecteerde leerdoelen
+  const clientInstructies = getClientInstructies(selectedSettings.leerdoelen);
+
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
@@ -284,7 +288,8 @@ Voorbeeld output:
           .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
           .replace('{{MOEILIJKHEID}}', selectedSettings.moeilijkheid)
           .replace('{{ARCHETYPE}}', selectedSettings.archetype)
-          .replace('{{PATIENT_NAME}}', placeholderName),
+          .replace('{{PATIENT_NAME}}', placeholderName)
+          + clientInstructies,
         messages: [{ role: 'user', content: openingPrompt }]
       })
     });
@@ -409,7 +414,14 @@ async function getHint() {
     return `${speaker}: ${msg.content}`;
   }).join('\n\n');
 
-  const coachSystemPrompt = `Je bent een ervaren praktijkbegeleider die MBO-zorgstudenten coacht tijdens gespreksoefeningen. Je observeert het gesprek en geeft korte, behulpzame tips.`;
+  // Haal coach context op voor geselecteerde leerdoelen
+  const coachKennis = getCoachContext(selectedSettings.leerdoelen);
+
+  const coachSystemPrompt = `Je bent een ervaren praktijkbegeleider die MBO-zorgstudenten coacht tijdens gespreksoefeningen. Je observeert het gesprek en geeft korte, behulpzame tips.
+
+## Kennis over de gesprekstechnieken die de student oefent:
+
+${coachKennis}`;
 
   const coachUserPrompt = `Hier is het gesprek tot nu toe tussen een student en een cliënt:
 
@@ -421,7 +433,7 @@ Context:
 - Setting: ${selectedSettings.setting}
 - De student oefent met: ${selectedSettings.leerdoelen.join(', ')}
 
-Geef de student één korte tip (max 2 zinnen) om het gesprek te verbeteren. Wees bemoedigend en concreet. Gebruik geen vakjargon zoals "LSD" of "NIVEA" - beschrijf gewoon wat de student kan doen.`;
+Analyseer het gesprek op basis van je kennis over de gesprekstechnieken hierboven. Geef de student één korte tip (max 2 zinnen) om het gesprek te verbeteren. Wees bemoedigend en concreet. Beschrijf gewoon wat de student kan doen, niet welke techniek het is.`;
 
   try {
     const response = await fetch(API_URL, {
@@ -466,6 +478,9 @@ async function generateResponse() {
 
   const persona = currentScenario.persona;
 
+  // Haal kennis op voor geselecteerde leerdoelen
+  const clientInstructies = getClientInstructies(selectedSettings.leerdoelen);
+
   // Build dynamic system prompt
   const dynamicPrompt = SYSTEM_PROMPT_MBO
     .replace('{{SETTING}}', selectedSettings.setting)
@@ -473,7 +488,8 @@ async function generateResponse() {
     .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
     .replace('{{MOEILIJKHEID}}', selectedSettings.moeilijkheid)
     .replace('{{ARCHETYPE}}', selectedSettings.archetype)
-    .replace('{{PATIENT_NAME}}', persona.name);
+    .replace('{{PATIENT_NAME}}', persona.name)
+    + clientInstructies;
 
   try {
     const response = await fetch(API_URL, {

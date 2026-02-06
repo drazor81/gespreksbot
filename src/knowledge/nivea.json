@@ -1,0 +1,28 @@
+{
+  "id": "NIVEA",
+  "naam": "NIVEA: Niet Invullen Voor Een Ander",
+  "korteUitleg": "Ga er niet vanuit dat je weet wat de ander denkt of voelt. Vraag het in plaats van in te vullen.",
+  "technieken": {
+    "nietInvullen": "Vermijd zinnen als 'U voelt zich vast...', 'U bedoelt waarschijnlijk...', 'U wilt zeker...'",
+    "welVragen": "Vraag: 'Hoe voelt dat voor u?', 'Wat bedoelt u precies?', 'Wat zou u willen?'"
+  },
+  "voorbeeldenGoed": [
+    "\"Hoe voelt u zich daarbij?\"",
+    "\"Wat gaat er door u heen als u dat hoort?\"",
+    "\"Kunt u daar meer over vertellen?\""
+  ],
+  "voorbeeldenFout": [
+    "\"U bent vast boos.\"",
+    "\"U wilt natuurlijk zo snel mogelijk naar huis.\"",
+    "\"U maakt zich zeker zorgen om uw kinderen.\""
+  ],
+  "clientReactie": {
+    "bijGoed": "Je voelt je gezien als individu. Je kunt je eigen ervaring delen zonder dat iemand die voor je invult.",
+    "bijFout": "Je voelt je niet begrepen. Je corrigeert: 'Nee, zo zit het niet' of 'Dat is helemaal niet wat ik voel'. Je raakt gefrustreerd."
+  },
+  "coachTips": [
+    "Let op zinnen die beginnen met 'U voelt vast...', 'U wilt waarschijnlijk...'",
+    "Check of de student vraagt naar gevoelens in plaats van ze in te vullen",
+    "Kijk of de student ruimte laat voor het eigen verhaal van de cliënt"
+  ]
+}

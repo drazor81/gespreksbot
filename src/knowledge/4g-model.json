@@ -1,0 +1,31 @@
+{
+  "id": "4G-model",
+  "naam": "4G-Model: Feedback geven",
+  "korteUitleg": "Een veilige manier om feedback te geven: Gedrag, Gevoel, Gevolg, Gewenst.",
+  "technieken": {
+    "gedrag": "Beschrijf objectief wat je ziet, zonder oordeel",
+    "gevoel": "Benoem wat het met jou doet",
+    "gevolg": "Leg uit wat het effect is",
+    "gewenst": "Geef aan wat je graag anders zou zien"
+  },
+  "voorbeeldenGoed": [
+    "\"Ik merk dat u de medicijnen niet heeft ingenomen (gedrag).\"",
+    "\"Dat maakt mij ongerust (gevoel).\"",
+    "\"Want dan kan uw bloeddruk te hoog worden (gevolg).\"",
+    "\"Kunnen we samen kijken hoe we dit kunnen oplossen? (gewenst)\""
+  ],
+  "voorbeeldenFout": [
+    "\"U bent altijd zo onverantwoordelijk met uw medicijnen.\"",
+    "\"Waarom luistert u nooit naar de dokter?\"",
+    "\"U doet ook nooit wat er gezegd wordt.\""
+  ],
+  "clientReactie": {
+    "bijGoed": "Je voelt je aangesproken maar niet aangevallen. Je bent bereid om mee te denken. Je voelt je gerespecteerd.",
+    "bijFout": "Je voelt je aangevallen. Je gaat in de verdediging of wordt boos. 'U heeft makkelijk praten!' Je sluit je af."
+  },
+  "coachTips": [
+    "Let op of de student ik-boodschappen gebruikt in plaats van jij-boodschappen",
+    "Check of de student gedrag beschrijft zonder te oordelen",
+    "Kijk of de student ruimte laat voor de reactie van de cliënt"
+  ]
+}
