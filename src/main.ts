@@ -48,6 +48,69 @@ const MOEILIJKHEID_BESCHRIJVING: Record<string, string> = {
   'Uitdagend': `Je bent wantrouwend of gefrustreerd. Je hebt slechte ervaringen met hulpverlening, of je voelt je niet serieus genomen. Je geeft korte, afgemeten antwoorden. Je kunt boos of verdrietig worden als je je niet gehoord voelt. Je stelt de zorgverlener op de proef: "Ja hoor, dat zeggen ze allemaal." Maar diep van binnen wil je wel geholpen worden — je moet alleen eerst het gevoel krijgen dat je echt gehoord wordt. Dat kost tijd en geduld.`
 };
 
+const ARCHETYPE_BESCHRIJVING: Record<string, { kern: string; varianten: string[] }> = {
+  'Verwarde oudere': {
+    kern: `Je bent een oudere persoon die verward is. Je vergeet dingen, je weet soms niet goed waar je bent of waarom. Je kunt angstig worden als je iets niet begrijpt. Soms probeer je je verwarring te verbergen omdat je je schaamt. Je hebt behoefte aan rust, geduld en herhaling.`,
+    varianten: [
+      `Je hebt beginnende dementie. Je herkent de zorgverlener niet altijd, en je vraagt soms meerdere keren hetzelfde. Je zoekt naar bekende gezichten en wordt onrustig als die er niet zijn. Soms denk je dat je nog thuis bent, of dat je partner zo thuiskomt — terwijl die al jaren geleden is overleden.`,
+      `Je bent onlangs verhuisd naar een nieuwe omgeving (verpleeghuis, andere afdeling). Alles is nieuw en je raakt snel het overzicht kwijt. Je weet niet waar de wc is, herkent je kamer niet, en mist je oude spullen. Je bent niet dement, maar de verandering maakt je onzeker en prikkelbaar.`,
+      `Je gebruikt nieuwe medicatie en voelt je er wazig van. Je kunt je moeilijk concentreren, bent suf en soms duizelig. Je snapt niet goed waarom je deze pillen moet slikken en bent bang voor de bijwerkingen. Je vertrouwt het niet helemaal en overweegt stiekem te stoppen met de medicijnen.`
+    ]
+  },
+  'Zorgmijdende cliënt': {
+    kern: `Je vermijdt zorg. Je komt niet graag naar afspraken, stelt dingen uit, en bagatelliseert klachten. Je hebt je redenen — maar die vertel je niet zomaar. Van buiten lijk je onverschillig of ongemotiveerd, maar van binnen speelt er meer.`,
+    varianten: [
+      `Je bent bang voor een diagnose. Je hebt klachten die je zorgen baren, maar je wilt het liever niet weten. Zolang niemand het hardop zegt, is het niet echt — zo voelt het tenminste. Je vader overleed aan dezelfde klachten en je bent doodsbang dat jou hetzelfde overkomt.`,
+      `Je hebt wantrouwen door een medische fout in het verleden. Een arts heeft iets gemist, of je bent verkeerd behandeld, en je hebt daar nooit excuses voor gekregen. Sindsdien vertrouw je zorgverleners niet meer. Je gaat alleen als het echt niet anders kan, en je controleert alles wat ze zeggen.`,
+      `Je schaamt je voor je situatie. Misschien is het een intiem probleem, verwaarlozing van je eigen gezondheid, of iets in je thuissituatie dat je niet wilt laten zien. Je houdt mensen op afstand om te voorkomen dat ze ontdekken hoe het er echt aan toe gaat. Je bagatelliseert alles: "Ach, het stelt niks voor."`
+    ]
+  },
+  'Boze cliënt': {
+    kern: `Je bent boos. Niet zomaar — je hebt een reden. Je boosheid is een reactie op iets dat je als onrechtvaardig ervaart. Je kunt je stem verheffen, kortaf zijn, of sarcastisch. Maar onder die boosheid zit vaak frustratie, machteloosheid of verdriet.`,
+    varianten: [
+      `Je hebt lang moeten wachten. Al weken wacht je op een afspraak, een uitslag, of een behandeling. Ondertussen word je van het kastje naar de muur gestuurd. Je voelt je niet serieus genomen. Vandaag kookt het over — je hebt er genoeg van.`,
+      `Er is over je hoofd heen beslist. Iemand heeft een beslissing genomen over jouw zorg, medicatie of woonsituatie zonder dat je erbij betrokken was. Je voelt je behandeld als een kind. Je wilt gehoord worden en zelf meebeslissen over je eigen leven.`,
+      `Er is een fout gemaakt in je zorg. Verkeerde medicatie, een gemiste afspraak, of informatie die niet is doorgegeven. Je vertrouwen is beschadigd. Je wilt weten wat er is misgegaan en je wilt dat iemand verantwoordelijkheid neemt — niet weer een smoesje.`
+    ]
+  },
+  'Angstige cliënt': {
+    kern: `Je bent angstig. Je maakt je zorgen, piekert veel, en denkt steeds aan het ergste scenario. Je kunt moeilijk beslissingen nemen omdat je bang bent voor de gevolgen. Je hebt behoefte aan duidelijkheid, eerlijkheid en geruststelling — maar niet het type "het komt wel goed" zonder uitleg.`,
+    varianten: [
+      `Je staat voor een operatie of medische ingreep. Je weet niet precies wat er gaat gebeuren en dat maakt je bang. Je hebt verhalen gehoord van mensen bij wie het misging. Je slaapt slecht, je eetlust is weg, en je stelt steeds dezelfde vragen omdat de antwoorden niet binnenkomen.`,
+      `Je hebt net een nieuwe diagnose gekregen. De arts heeft iets gezegd, maar je hebt maar de helft gehoord. Je hoofd zit vol vragen: wat betekent dit voor mijn leven? Kan ik nog werken? Moet ik het aan mijn kinderen vertellen? Je voelt je overweldigd en alleen.`,
+      `Je voelt je onveilig thuis. Misschien is er sprake van een lastige huisgenoot, een partner die intimiderend is, of een buurt waar je je niet meer veilig voelt. Je durft er niet goed over te praten, want je bent bang voor de gevolgen. Je zoekt hints of deze zorgverlener te vertrouwen is.`
+    ]
+  }
+};
+
+let currentArchetypeBeschrijving = '';
+
+function getArchetypeBeschrijving(archetype: string, customArchetype?: string): string {
+  // Eigen scenario: Claude leidt het type af
+  if (archetype === 'scenario-inferred') {
+    return 'Je cliënttype volgt uit het beschreven scenario. Speel het type dat het beste past bij de situatie.';
+  }
+
+  // Eigen type: gebruik de custom beschrijving
+  if (archetype === 'Eigen type' && customArchetype?.trim()) {
+    return `Je bent: ${customArchetype.trim()}. Verzin zelf een passende achtergrond en persoonlijkheid bij dit type.`;
+  }
+
+  // Willekeurig: kies random archetype via JS
+  if (archetype === 'Willekeurig') {
+    const archetypes = Object.keys(ARCHETYPE_BESCHRIJVING);
+    archetype = archetypes[Math.floor(Math.random() * archetypes.length)];
+  }
+
+  const data = ARCHETYPE_BESCHRIJVING[archetype];
+  if (!data) {
+    return `Je bent een ${archetype.toLowerCase()}.`;
+  }
+
+  const randomVariant = data.varianten[Math.floor(Math.random() * data.varianten.length)];
+  return `${data.kern}\n\n**Jouw specifieke achtergrond:** ${randomVariant}`;
+}
+
 let selectedSettings = {
   setting: SETTINGS_OPTIONS.setting[0],
   scenarioType: SETTINGS_OPTIONS.scenarioType[0].value,
@@ -283,37 +346,92 @@ async function startScenarioFromSettings() {
 
   // Determine scenario description
   let scenarioDescription = '';
-  let archetypeDescription = selectedSettings.archetype;
+  let archetypeForPrompt = selectedSettings.archetype;
 
   if (selectedSettings.scenarioType === 'Eigen scenario' && selectedSettings.customScenario.trim()) {
     scenarioDescription = `EIGEN SCENARIO: ${selectedSettings.customScenario}. Leid zelf het juiste cliënttype af uit deze beschrijving.`;
-    archetypeDescription = 'een cliënt passend bij het beschreven scenario';
+    archetypeForPrompt = 'scenario-inferred';
   } else if (selectedSettings.scenarioType === 'Willekeurig') {
     scenarioDescription = 'WILLEKEURIG: Bedenk zelf een passend en realistisch scenario voor deze setting en dit cliënttype.';
   } else {
     scenarioDescription = `Standaard scenario: ${selectedSettings.scenarioType}`;
   }
 
-  // Handle random archetype (only if not custom scenario)
-  if (selectedSettings.archetype === 'Willekeurig' && selectedSettings.scenarioType !== 'Eigen scenario') {
-    archetypeDescription = 'een willekeurig gekozen cliënttype (kies zelf uit: verwarde oudere, boze cliënt, angstige cliënt, of zorgmijdende cliënt)';
+  // Generate archetype description (with random variant) and store for the session
+  currentArchetypeBeschrijving = getArchetypeBeschrijving(archetypeForPrompt, selectedSettings.customArchetype);
+
+  // Determine archetypeDescription for the opening prompt
+  let archetypeDescription = selectedSettings.archetype;
+  if (archetypeForPrompt === 'scenario-inferred') {
+    archetypeDescription = 'een cliënt passend bij het beschreven scenario';
   } else if (selectedSettings.archetype === 'Eigen type' && selectedSettings.customArchetype.trim()) {
     archetypeDescription = selectedSettings.customArchetype;
+  } else if (selectedSettings.archetype === 'Willekeurig') {
+    // The archetype was already resolved in getArchetypeBeschrijving, extract the type for the opening prompt
+    archetypeDescription = 'het cliënttype dat beschreven staat in je karakter-sectie';
   }
 
   const titles = ["Mevrouw", "Meneer"];
-  const lastNames = ["Jansen", "de Vries", "van den Berg", "Smit", "de Jong", "Visser", "Mulder", "Bakhuizen", "Hendriks", "Postma", "Dijkstra", "Vermeulen", "Willems", "Kramer", "de Wit", "Luiten", "Groot", "Schouten", "Prins", "Vos", "Meijer"];
+  const lastNames = [
+    // Nederlands
+    "Jansen", "de Vries", "van den Berg", "Smit", "de Jong", "Visser", "Mulder",
+    "Hendriks", "Postma", "Dijkstra", "Vermeulen", "Dekker", "Brouwer", "de Graaf",
+    "van der Linden", "Scholten", "Kuiper", "Huisman", "Hoekstra", "Koster",
+    "Molenaar", "Veldman", "Schipper", "Veenstra", "Blom", "Timmermans", "Jonker",
+    "de Boer", "van Rijn", "Bouwman", "de Bruin", "Hofman", "Nauta", "Zijlstra",
+    "Terpstra", "de Ruiter", "Roos", "Groen", "van Dam", "de Lange",
+    "Bakker", "van Dijk", "Meijer", "Peters", "Kok", "Kramer", "Prins", "Vos",
+    "Bos", "van Leeuwen", "Wolff", "Haan", "Maas", "van Beek", "Evers",
+    "Hermans", "Martens", "Peeters", "van Wijk", "Lammers", "Akkerman", "Smeets",
+    "Gerritsen", "Willemse", "Roelofs", "van der Wal", "Rietveld", "Drost",
+    "van Doorn", "ter Haar", "Jacobs", "van Vliet", "Driessen", "van Es",
+    "Coppens", "Franken", "Leenders", "van Hout", "de Haan", "Verschuur",
+    "Vink", "Overbeek", "ten Brink", "Zwart", "de Wit", "Schouten",
+    "van der Heijden", "de Ridder", "Schut", "Slot", "Bogaert", "Appelman",
+    "Korte", "Winkel", "Snel", "van Oort", "Spijker", "Ploeg", "Buijs",
+    "Westra", "Poot", "Bezemer", "Kool", "van Kampen", "Vrolijk", "Berger",
+    "Rademaker", "Hoek", "van der Veen", "Grasman", "Noordhuis", "Damen",
+    "Schoenmakers", "Reinders", "Claassen", "Boon", "Jellema", "Witteveen",
+    "Kuijpers", "van Loon", "Gerrits", "van Straaten", "van Gelderen",
+    "van der Velden", "Sluiter", "van Dalen", "Coenen", "Nooij",
+    // Surinaams
+    "Redan", "Pengel", "Djwalapersad", "Woei-A-Tsoi", "Venetiaan", "Biervliet",
+    "Dragman", "Kanhai", "Soerdjan", "Ramdat", "Jokhan", "Sitaldin", "Tjin-A-Tsoi",
+    "Bhagwandas", "Kishna", "Mangroe", "Soemita", "Lachmon", "Moeniralam",
+    "Ramadin", "Panka", "Soekhlal",
+    // Turks
+    "Yilmaz", "Kaya", "Demir", "Celik", "Sahin", "Ozturk", "Arslan", "Dogan",
+    "Kilic", "Aydin", "Erdogan", "Polat", "Ozdemir", "Yildiz", "Aksoy",
+    "Korkmaz", "Gunes", "Bulut", "Tekin", "Karaca", "Unal", "Taskin",
+    // Marokkaans
+    "El Amrani", "Bouzid", "El Idrissi", "Tahiri", "Amrani", "Benali", "Chaouqi",
+    "El Haddadi", "Lahlou", "Moussaoui", "Rachidi", "Zarouali", "Belhaj",
+    "El Ouardi", "Haddouchi", "Karimi", "Nouri", "Saidi", "Bouazza", "El Hamdaoui",
+    "Aboutaleb", "Ziani",
+    // Indonesisch
+    "Soekarno", "Wibowo", "Hartono", "Sutrisno", "Hidayat", "Tjakraningrat",
+    "Prasetyo", "Wijaya", "Gunawan", "Suryadi", "Indraswari", "Kusuma",
+    "Soetomo", "Purnama", "Suharto", "Nugroho", "Setiono", "Habibie",
+    // Antilliaans
+    "Martina", "Cijntje", "Sulvaran", "Constancia", "Pieternella", "Willems",
+    "Rosaria", "Oleana", "Zimmerman", "Frans", "Semeleer", "Maduro",
+    "Nicolaas", "Evertsz", "Vierdag",
+    // Overig (Ghanees, Kaapverdiaans, Chinees, etc.)
+    "Owusu", "Mensah", "Asante", "Boateng", "Osei", "Fortes", "Tavares",
+    "Gomes", "Mendes", "Chen", "Huang", "Wang", "Lin", "Nguyen", "Pham",
+    "Ali", "Hassan", "Omar", "Ibrahim", "Mohammed"
+  ];
   const randomHint = `${titles[Math.floor(Math.random() * titles.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
 
-  const openingPrompt = `Je bent een ${archetypeDescription.toLowerCase()} in ${selectedSettings.setting}.
+  const openingPrompt = `Je bent ${randomHint}, een ${archetypeDescription.toLowerCase()} in ${selectedSettings.setting}.
 ${scenarioDescription}
 
-Bedenk een realistische naam voor jezelf (bijv. ${randomHint}, maar kies gerust een andere) en begin je antwoord VERPLICHT met je naam in dit formaat: [NAAM: Mevrouw/Meneer Achternaam]
+Je naam is ${randomHint}. Begin je antwoord VERPLICHT met je naam in dit formaat: [NAAM: ${randomHint}]
 Genereer daarna je EERSTE zin als cliënt. Beschrijf kort je situatie en stemming passend bij de setting.
 Gebruik *italics* voor non-verbaal gedrag. Houd het kort (1-2 zinnen).
 
 Voorbeeld output:
-[NAAM: Mevrouw van Dam]
+[NAAM: ${randomHint}]
 *Kijkt op vanuit de stoel* Goedemorgen... ben ik eindelijk aan de beurt?`;
 
   // Haal kennis op voor geselecteerde leerdoelen
@@ -329,7 +447,7 @@ Voorbeeld output:
           .replace('{{SCENARIO_TYPE}}', selectedSettings.scenarioType)
           .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
           .replace('{{MOEILIJKHEID_BESCHRIJVING}}', MOEILIJKHEID_BESCHRIJVING[selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld'])
-          .replace('{{ARCHETYPE}}', selectedSettings.archetype)
+          .replace('{{ARCHETYPE_BESCHRIJVING}}', currentArchetypeBeschrijving)
           .replace('{{PATIENT_NAME}}', placeholderName)
           + clientInstructies,
         messages: [{ role: 'user', content: openingPrompt }]
@@ -552,7 +670,7 @@ async function generateResponse() {
     .replace('{{SCENARIO_TYPE}}', selectedSettings.scenarioType)
     .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
     .replace('{{MOEILIJKHEID_BESCHRIJVING}}', MOEILIJKHEID_BESCHRIJVING[selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld'])
-    .replace('{{ARCHETYPE}}', selectedSettings.archetype)
+    .replace('{{ARCHETYPE_BESCHRIJVING}}', currentArchetypeBeschrijving)
     .replace('{{PATIENT_NAME}}', persona.name)
     + clientInstructies;
 
