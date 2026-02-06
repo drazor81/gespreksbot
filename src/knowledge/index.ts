@@ -13,6 +13,7 @@ export interface Kennisitem {
   id: string;
   naam: string;
   korteUitleg: string;
+  uitgebreideTheorie?: string;  // Optioneel veld voor extra theorie
   technieken: Record<string, string>;
   voorbeeldenGoed: string[];
   voorbeeldenFout: string[];

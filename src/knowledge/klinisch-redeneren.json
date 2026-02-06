@@ -2,6 +2,7 @@
   "id": "Klinisch Redeneren",
   "naam": "Klinisch Redeneren (6 stappen)",
   "korteUitleg": "Het proces waarbij je observaties koppelt aan kennis om tot een verpleegkundige diagnose en beleid te komen.",
+  "uitgebreideTheorie": "Klinisch redeneren is het denkproces dat verpleegkundigen gebruiken om problemen te identificeren en op te lossen. Het model van Marc Bakker (6 stappen) biedt structuur.\n\n**Stap 1 - Oriëntatie:** Verzamel gegevens via anamnese, observatie, meting. Wat zie je, hoor je, meet je?\n\n**Stap 2 - Probleemstelling:** Welke verpleegkundige diagnose(s) stel je? Gebruik PES: Probleem, Etiologie, Symptomen.\n\n**Stap 3 - Aanvullend onderzoek:** Welke informatie ontbreekt nog? Denk aan labwaarden, consultatie, extra observaties.\n\n**Stap 4 - Beleid:** Welke interventies ga je inzetten? Koppel deze aan de diagnose.\n\n**Stap 5 - Verloop:** Wat verwacht je dat er gaat gebeuren? Anticipeer op mogelijke complicaties.\n\n**Stap 6 - Evaluatie:** Heeft het beleid gewerkt? Moet je bijstellen?\n\nKlinisch redeneren vraagt om kritisch denken, patroonherkenning, en het durven stellen van hypotheses.",
   "technieken": {
     "stap1": "Oriëntatie: Verzamelen van gegevens (anamnese, observaties)",
     "stap2": "Probleemstelling: Vaststellen van de belangrijkste problemen",
