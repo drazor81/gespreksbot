@@ -1,6 +1,7 @@
 import './style.css'
 import personasData from '../personas.json'
 import { SYSTEM_PROMPT_MBO_V2 } from './prompts/system-prompt'
+import { FEEDBACK_PROMPT } from './prompts/feedback-prompt'
 import { getClientInstructies, getCoachContext, getTheorieVoorStudent } from './knowledge'
 
 interface Persona {
@@ -181,12 +182,17 @@ function initUI() {
       </div>
     </div>
     <div id="chat-container" style="display: none;"></div>
-    <form id="input-area" style="display: none;">
-      <input type="text" id="user-input" placeholder="Typ je bericht..." autocomplete="off">
-      <button type="button" id="theory-btn" title="Bekijk theorie">📚</button>
-      <button type="button" id="hint-btn" title="Vraag een tip">💡</button>
-      <button type="submit">Verstuur</button>
-    </form>
+    <div id="input-area" style="display: none;">
+      <div class="input-toolbar">
+        <button type="button" id="theory-btn" title="Bekijk theorie">📚 Theorie</button>
+        <button type="button" id="hint-btn" title="Vraag een tip">💡 Tip</button>
+        <button type="button" id="feedback-btn" title="Vraag feedback">📋 Feedback</button>
+      </div>
+      <form id="input-form">
+        <input type="text" id="user-input" placeholder="Typ je bericht..." autocomplete="off">
+        <button type="submit">Verstuur</button>
+      </form>
+    </div>
     <div id="theory-modal" class="modal" style="display: none;">
       <div class="modal-content">
         <div class="modal-header">
@@ -195,6 +201,21 @@ function initUI() {
         </div>
         <div id="theory-content" class="modal-body"></div>
       </div>
+    </div>
+    <div id="feedback-screen" style="display: none;">
+      <div class="feedback-container">
+        <div class="feedback-gesprek">
+          <h3>Gesprek</h3>
+          <div id="feedback-gesprek-content"></div>
+        </div>
+        <div class="feedback-panel">
+          <h3>Feedback</h3>
+          <div id="feedback-content">
+            <p class="feedback-loading">Feedback wordt gegenereerd...</p>
+          </div>
+        </div>
+      </div>
+      <button id="new-conversation-btn">Nieuw gesprek</button>
     </div>
   `
 
@@ -241,7 +262,7 @@ function initUI() {
     });
   });
 
-  const form = document.querySelector<HTMLFormElement>('#input-area')!;
+  const form = document.querySelector<HTMLFormElement>('#input-form')!;
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     handleSendMessage();
@@ -264,6 +285,14 @@ function initUI() {
     if ((e.target as HTMLElement).id === 'theory-modal') {
       closeTheory();
     }
+  });
+
+  document.querySelector('#feedback-btn')?.addEventListener('click', () => {
+    showFeedback();
+  });
+
+  document.querySelector('#new-conversation-btn')?.addEventListener('click', () => {
+    location.reload();
   });
 
   document.querySelector('#reset-btn')?.addEventListener('click', () => {
@@ -502,7 +531,7 @@ function startScenario(id: string) {
 function prepareChat() {
   document.querySelector<HTMLDivElement>('#setup-screen')!.style.display = 'none';
   document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'flex';
-  document.querySelector<HTMLFormElement>('#input-area')!.style.display = 'flex';
+  document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'flex';
 }
 
 function showTheory() {
@@ -526,6 +555,87 @@ function showTheory() {
 function closeTheory() {
   const modal = document.querySelector('#theory-modal') as HTMLDivElement;
   modal.style.display = 'none';
+}
+
+async function showFeedback() {
+  if (conversationHistory.length < 2) {
+    addMessage('Systeem', 'Voer eerst een gesprek voordat je feedback vraagt.', 'system');
+    return;
+  }
+
+  // Hide chat and input, show feedback screen
+  document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'none';
+  document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'none';
+  const feedbackScreen = document.querySelector<HTMLDivElement>('#feedback-screen')!;
+  feedbackScreen.style.display = 'flex';
+
+  // Copy conversation to feedback panel
+  const gesprekContent = document.querySelector('#feedback-gesprek-content')!;
+  const chatContainer = document.querySelector('#chat-container')!;
+  gesprekContent.innerHTML = chatContainer.innerHTML;
+
+  // Generate feedback via API
+  const feedbackContent = document.querySelector('#feedback-content')!;
+  feedbackContent.innerHTML = '<p class="feedback-loading">Feedback wordt gegenereerd...</p>';
+
+  const transcript = conversationHistory.map(msg => {
+    const speaker = msg.role === 'user' ? 'Student' : `Cliënt (${currentScenario?.persona.name || 'de cliënt'})`;
+    return `${speaker}: ${msg.content}`;
+  }).join('\n\n');
+
+  const coachKennis = getCoachContext(selectedSettings.leerdoelen);
+
+  const feedbackSystemPrompt = FEEDBACK_PROMPT
+    .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
+    .replace('{{COACH_KENNIS}}', coachKennis);
+
+  const feedbackUserPrompt = `Hier is het volledige gesprek tussen de student en de cliënt:
+
+---
+${transcript}
+---
+
+Context:
+- Setting: ${selectedSettings.setting}
+- Scenario: ${selectedSettings.scenarioType}
+- Cliënttype: ${selectedSettings.archetype}
+- Niveau: ${selectedSettings.moeilijkheid}
+- Leerdoelen: ${selectedSettings.leerdoelen.join(', ')}
+- Aantal beurten: ${conversationHistory.length}
+
+Geef nu je feedback volgens de voorgeschreven structuur.`;
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemPrompt: feedbackSystemPrompt,
+        messages: [{ role: 'user', content: feedbackUserPrompt }]
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      feedbackContent.innerHTML = `<p class="feedback-error">Kon geen feedback genereren: ${data.error}</p>`;
+    } else {
+      feedbackContent.innerHTML = formatFeedback(data.response);
+    }
+  } catch (error) {
+    feedbackContent.innerHTML = '<p class="feedback-error">Kon geen verbinding maken met de server.</p>';
+  }
+}
+
+function formatFeedback(text: string): string {
+  return text
+    .replace(/### (.*)/g, '<h4>$1</h4>')
+    .replace(/## (.*)/g, '<h3>$1</h3>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/"(.*?)"/g, '<q>$1</q>')
+    .replace(/\n- /g, '<br>• ')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>');
 }
 
 function handleSendMessage() {
