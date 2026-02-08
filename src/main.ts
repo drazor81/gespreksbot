@@ -22,8 +22,17 @@ interface Scenario {
 
 const SYSTEM_PROMPT_MBO = SYSTEM_PROMPT_MBO_V2;
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/chat';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
+const API_URL = `${API_BASE}/api/chat`;
 let conversationHistory: { role: 'user' | 'assistant'; content: string }[] = [];
+
+// Speech mode state
+let speechMode = false;
+let mediaRecorder: MediaRecorder | null = null;
+let audioChunks: Blob[] = [];
+let isRecording = false;
+let audioContext: AudioContext | null = null;
+let silenceTimer: number | null = null;
 
 const scenarios: Scenario[] = personasData;
 let currentScenario: Scenario | null = null;
@@ -40,7 +49,7 @@ const SETTINGS_OPTIONS = {
   ],
   leerdoelen: ["LSD", "OMA/ANNA", "NIVEA", "SBAR", "Klinisch Redeneren", "MGV", "4G-model", "De-escalatie", "STARR", "Vrije oefening"],
   moeilijkheid: ["Basis", "Gemiddeld", "Uitdagend"],
-  clientArchetype: ["Verwarde oudere", "Zorgmijdende cliënt", "Boze cliënt", "Angstige cliënt", "Willekeurig", "Eigen type"]
+  clientArchetype: ["Verwarde oudere", "Zorgmijdende cliënt", "Boze cliënt", "Angstige cliënt", "Collega", "Willekeurig", "Eigen type"]
 };
 
 const MOEILIJKHEID_BESCHRIJVING: Record<string, string> = {
@@ -81,12 +90,67 @@ const ARCHETYPE_BESCHRIJVING: Record<string, { kern: string; varianten: string[]
       `Je hebt net een nieuwe diagnose gekregen. De arts heeft iets gezegd, maar je hebt maar de helft gehoord. Je hoofd zit vol vragen: wat betekent dit voor mijn leven? Kan ik nog werken? Moet ik het aan mijn kinderen vertellen? Je voelt je overweldigd en alleen.`,
       `Je voelt je onveilig thuis. Misschien is er sprake van een lastige huisgenoot, een partner die intimiderend is, of een buurt waar je je niet meer veilig voelt. Je durft er niet goed over te praten, want je bent bang voor de gevolgen. Je zoekt hints of deze zorgverlener te vertrouwen is.`
     ]
+  },
+  'Collega': {
+    kern: `Je bent een zorgprofessional die samenwerkt met de student. Je verwacht duidelijke, gestructureerde communicatie. Je bent collegiaal maar hebt het druk. Je reageert op de kwaliteit van de informatie die je krijgt — als het helder en gestructureerd is, kun je snel schakelen. Als het rommelig of onvolledig is, moet je doorvragen en dat kost tijd die je eigenlijk niet hebt.`,
+    varianten: [
+      `Je neemt de dienst over van de student. Je wilt een duidelijke overdracht: welke cliënten hebben aandacht nodig, wat is er veranderd, wat moet er nog gebeuren. De afdeling is druk en je hebt weinig tijd, dus je verwacht dat de student gestructureerd en to-the-point is.`,
+      `De student belt je op omdat er iets zorgelijks is met een cliënt. Je bent arts of specialist en kunt niet direct langskomen — je moet op basis van de telefonische informatie een inschatting maken en beslissen wat er moet gebeuren. Je stelt gerichte vragen als informatie ontbreekt.`,
+      `Je bent een collega die met de student overlegt over een cliënt. Jullie zijn gelijkwaardig. Je denkt mee maar verwacht dat de student het probleem helder kan verwoorden. Je deelt je eigen expertise en ervaring als dat relevant is.`
+    ]
   }
 };
 
+const COLLEGA_ROLLEN: Record<string, string> = {
+  'Verpleeghuis': 'collega-verzorgende',
+  'Thuiszorg': 'collega-wijkverpleegkundige',
+  'Ziekenhuis': 'collega-verpleegkundige',
+  'GGZ': 'collega-begeleider',
+  'Gehandicaptenzorg': 'collega-begeleider',
+  'Huisartsenpraktijk': 'collega-praktijkondersteuner'
+};
+
+const MOEILIJKHEID_COLLEGA: Record<string, string> = {
+  'Basis': `Je bent geduldig en behulpzaam. Je geeft de student de tijd om informatie te delen. Als er iets ontbreekt, vraag je vriendelijk door. Je denkt actief mee en geeft aanmoediging.`,
+  'Gemiddeld': `Je bent professioneel maar hebt het druk. Je verwacht dat de student gestructureerd communiceert. Als informatie ontbreekt of onduidelijk is, vraag je gericht door. Je hebt niet eindeloos de tijd.`,
+  'Uitdagend': `Je bent gehaast en hebt weinig tijd. Je verwacht dat de student snel en to-the-point is. Als de informatie rommelig of onvolledig is, laat je dat merken. Je kunt kortaf reageren of de student onderbreken als het te lang duurt. Je stelt kritische vragen.`
+};
+
+let isCollegaMode = false;
 let currentArchetypeBeschrijving = '';
 
+function getCollegaContext(setting: string): string {
+  const rol = COLLEGA_ROLLEN[setting] || 'collega';
+  return `
+
+## BELANGRIJK: Je bent een COLLEGA, geen cliënt
+
+Je speelt een zorgprofessional (${rol}), geen patiënt. De instructies hierboven over cliëntgedrag gelden NIET voor jou. Volg in plaats daarvan deze instructies:
+
+**Hoe je praat:**
+- Professioneel maar collegiaal — je tutoyeert of vousvoyeert afhankelijk van de relatie
+- Je gebruikt vakterminologie waar nodig
+- Je bent direct en to-the-point
+- Je kunt doorvragen als informatie ontbreekt: "Wat zijn de vitale waarden?", "Hoe lang is dat al zo?", "Wat heb je zelf al gedaan?"
+
+**Hoe je reageert op de student:**
+- Bij duidelijke, gestructureerde communicatie: je kunt snel schakelen, bevestigt wat je hebt gehoord, stelt eventueel aanvullende vragen
+- Bij onduidelijke of onvolledige informatie: je vraagt door, vraagt om specificatie, laat merken dat je niet genoeg hebt om mee te werken
+- Je beoordeelt niet expliciet de techniek van de student, maar je reactie weerspiegelt de kwaliteit van de communicatie
+
+**Non-verbaal gedrag:**
+- *Maakt aantekeningen* of *Knikt* bij heldere informatie
+- *Kijkt op de klok* of *Fronst* bij onduidelijkheid
+- *Onderbreekt* als het te lang duurt (bij hoger niveau)
+- *Leunt naar voren* als het belangrijk wordt
+
+**Je vraagt NIET door als cliënt maar als professional:** je wilt concrete feiten, observaties en een duidelijk verzoek. Je deelt je eigen professionele inschatting wanneer relevant.
+`;
+}
+
 function getArchetypeBeschrijving(archetype: string, customArchetype?: string): string {
+  isCollegaMode = false; // Reset bij elke aanroep
+
   // Eigen scenario: Claude leidt het type af
   if (archetype === 'scenario-inferred') {
     return 'Je cliënttype volgt uit het beschreven scenario. Speel het type dat het beste past bij de situatie.';
@@ -102,6 +166,8 @@ function getArchetypeBeschrijving(archetype: string, customArchetype?: string): 
     const archetypes = Object.keys(ARCHETYPE_BESCHRIJVING);
     archetype = archetypes[Math.floor(Math.random() * archetypes.length)];
   }
+
+  isCollegaMode = archetype === 'Collega';
 
   const data = ARCHETYPE_BESCHRIJVING[archetype];
   if (!data) {
@@ -188,10 +254,26 @@ function initUI() {
         <button type="button" id="hint-btn" title="Vraag een tip">💡 Tip</button>
         <button type="button" id="feedback-btn" title="Vraag feedback">📋 Feedback</button>
       </div>
+      <div class="speech-toggle">
+        <span class="speech-toggle-label">Spraak</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="speech-toggle-input">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       <form id="input-form">
         <input type="text" id="user-input" placeholder="Typ je bericht..." autocomplete="off">
         <button type="submit">Verstuur</button>
       </form>
+      <div id="speech-input" style="display: none;">
+        <button type="button" id="mic-btn" class="mic-button" title="Klik om te spreken">
+          <svg class="mic-icon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+          </svg>
+          <span class="mic-status">Klik om te spreken</span>
+        </button>
+      </div>
     </div>
     <div id="theory-modal" class="modal" style="display: none;">
       <div class="modal-content">
@@ -299,6 +381,30 @@ function initUI() {
     location.reload();
   });
 
+  // Speech toggle
+  document.querySelector('#speech-toggle-input')?.addEventListener('change', (e) => {
+    speechMode = (e.target as HTMLInputElement).checked;
+    const inputForm = document.querySelector('#input-form') as HTMLElement;
+    const speechInput = document.querySelector('#speech-input') as HTMLElement;
+    if (speechMode) {
+      inputForm.style.display = 'none';
+      speechInput.style.display = 'flex';
+    } else {
+      inputForm.style.display = 'flex';
+      speechInput.style.display = 'none';
+      if (isRecording) stopRecording();
+    }
+  });
+
+  // Mic button
+  document.querySelector('#mic-btn')?.addEventListener('click', () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  });
+
   // Update start button state based on checkbox selection
   const checkboxGroup = document.querySelector('.checkbox-group');
   checkboxGroup?.addEventListener('change', updateStartButtonState);
@@ -349,7 +455,7 @@ function updateSettings() {
 
 async function startScenarioFromSettings() {
   // Use a placeholder name for the first turn - Claude will generate its own name
-  const placeholderName = "De cliënt";
+  const placeholderName = isCollegaMode ? "De collega" : "De cliënt";
 
   currentScenario = {
     id: "dynamic",
@@ -367,8 +473,9 @@ async function startScenarioFromSettings() {
 
   prepareChat();
   const scenarioLabel = selectedSettings.scenarioType === 'Eigen scenario' ? selectedSettings.customScenario.substring(0, 50) + '...' : selectedSettings.scenarioType;
+  const rolLabel = isCollegaMode ? 'Collega' : 'Cliënt';
   addMessage('Systeem', `Gesprek gestart in ${selectedSettings.setting}. Scenario: ${scenarioLabel}`, 'system');
-  addMessage('Cliënt', '*...*', 'patient'); // Typing indicator
+  addMessage(rolLabel, '*...*', 'patient'); // Typing indicator
 
   // Request dynamic opening from Claude
   conversationHistory = []; // Reset history for new conversation
@@ -452,7 +559,21 @@ async function startScenarioFromSettings() {
   ];
   const randomHint = `${titles[Math.floor(Math.random() * titles.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
 
-  const openingPrompt = `Je bent ${randomHint}, een ${archetypeDescription.toLowerCase()} in ${selectedSettings.setting}.
+  let openingPrompt: string;
+  if (isCollegaMode) {
+    const collegaRol = COLLEGA_ROLLEN[selectedSettings.setting] || 'collega';
+    openingPrompt = `Je bent ${randomHint}, een ${collegaRol} in ${selectedSettings.setting}.
+${scenarioDescription}
+
+Je naam is ${randomHint}. Begin je antwoord VERPLICHT met je naam in dit formaat: [NAAM: ${randomHint}]
+Genereer daarna je EERSTE zin als collega. Je begint het gesprek — je verwacht informatie van de student (bijv. een overdracht, een telefonisch consult, of een overleg).
+Gebruik *italics* voor non-verbaal gedrag. Houd het kort (1-2 zinnen).
+
+Voorbeeld output:
+[NAAM: ${randomHint}]
+*Loopt snel de kamer binnen met een kop koffie* Hé, goedemorgen. Hoe is de nacht geweest? Zijn er bijzonderheden?`;
+  } else {
+    openingPrompt = `Je bent ${randomHint}, een ${archetypeDescription.toLowerCase()} in ${selectedSettings.setting}.
 ${scenarioDescription}
 
 Je naam is ${randomHint}. Begin je antwoord VERPLICHT met je naam in dit formaat: [NAAM: ${randomHint}]
@@ -462,6 +583,7 @@ Gebruik *italics* voor non-verbaal gedrag. Houd het kort (1-2 zinnen).
 Voorbeeld output:
 [NAAM: ${randomHint}]
 *Kijkt op vanuit de stoel* Goedemorgen... ben ik eindelijk aan de beurt?`;
+  }
 
   // Haal kennis op voor geselecteerde leerdoelen
   const clientInstructies = getClientInstructies(selectedSettings.leerdoelen);
@@ -475,9 +597,12 @@ Voorbeeld output:
           .replace('{{SETTING}}', selectedSettings.setting)
           .replace('{{SCENARIO_TYPE}}', selectedSettings.scenarioType)
           .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
-          .replace('{{MOEILIJKHEID_BESCHRIJVING}}', MOEILIJKHEID_BESCHRIJVING[selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld'])
+          .replace('{{MOEILIJKHEID_BESCHRIJVING}}', isCollegaMode
+            ? (MOEILIJKHEID_COLLEGA[selectedSettings.moeilijkheid] || MOEILIJKHEID_COLLEGA['Gemiddeld'])
+            : (MOEILIJKHEID_BESCHRIJVING[selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld']))
           .replace('{{ARCHETYPE_BESCHRIJVING}}', currentArchetypeBeschrijving)
           .replace('{{PATIENT_NAME}}', placeholderName)
+          .replace('{{ROLTYPE_CONTEXT}}', isCollegaMode ? getCollegaContext(selectedSettings.setting) : '')
           + clientInstructies,
         messages: [{ role: 'user', content: openingPrompt }]
       })
@@ -505,7 +630,7 @@ Voorbeeld output:
         addMessage(extractedName, cleanResponse, 'patient');
       } else {
         conversationHistory.push({ role: 'assistant', content: data.response });
-        addMessage('Cliënt', data.response, 'patient');
+        addMessage(isCollegaMode ? 'Collega' : 'Cliënt', data.response, 'patient');
       }
     }
   } catch (error) {
@@ -579,7 +704,7 @@ async function showFeedback() {
   feedbackContent.innerHTML = '<p class="feedback-loading">Feedback wordt gegenereerd...</p>';
 
   const transcript = conversationHistory.map(msg => {
-    const speaker = msg.role === 'user' ? 'Student' : `Cliënt (${currentScenario?.persona.name || 'de cliënt'})`;
+    const speaker = msg.role === 'user' ? 'Student' : `${isCollegaMode ? 'Collega' : 'Cliënt'} (${currentScenario?.persona.name || (isCollegaMode ? 'de collega' : 'de cliënt')})`;
     return `${speaker}: ${msg.content}`;
   }).join('\n\n');
 
@@ -650,7 +775,7 @@ function handleSendMessage() {
   conversationHistory.push({ role: 'user', content: text });
 
   // Show typing indicator
-  addMessage(currentScenario?.persona.name || 'Cliënt', '*denkt na...*', 'patient');
+  addMessage(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Cliënt'), '*denkt na...*', 'patient');
 
   generateResponse();
 }
@@ -703,7 +828,7 @@ async function getHint() {
 
   // Format conversation as a readable transcript (not as chat messages)
   const transcript = conversationHistory.map(msg => {
-    const speaker = msg.role === 'user' ? 'Student' : `Cliënt (${currentScenario?.persona.name || 'de cliënt'})`;
+    const speaker = msg.role === 'user' ? 'Student' : `${isCollegaMode ? 'Collega' : 'Cliënt'} (${currentScenario?.persona.name || (isCollegaMode ? 'de collega' : 'de cliënt')})`;
     return `${speaker}: ${msg.content}`;
   }).join('\n\n');
 
@@ -764,7 +889,7 @@ Analyseer het gesprek op basis van je kennis over de gesprekstechnieken hierbove
   }
 }
 
-async function generateResponse() {
+async function generateResponseAndReturn(): Promise<string | null> {
   if (!currentScenario) {
     currentScenario = scenarios[0];
   }
@@ -779,9 +904,12 @@ async function generateResponse() {
     .replace('{{SETTING}}', selectedSettings.setting)
     .replace('{{SCENARIO_TYPE}}', selectedSettings.scenarioType)
     .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
-    .replace('{{MOEILIJKHEID_BESCHRIJVING}}', MOEILIJKHEID_BESCHRIJVING[selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld'])
+    .replace('{{MOEILIJKHEID_BESCHRIJVING}}', isCollegaMode
+      ? (MOEILIJKHEID_COLLEGA[selectedSettings.moeilijkheid] || MOEILIJKHEID_COLLEGA['Gemiddeld'])
+      : (MOEILIJKHEID_BESCHRIJVING[selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld']))
     .replace('{{ARCHETYPE_BESCHRIJVING}}', currentArchetypeBeschrijving)
     .replace('{{PATIENT_NAME}}', persona.name)
+    .replace('{{ROLTYPE_CONTEXT}}', isCollegaMode ? getCollegaContext(selectedSettings.setting) : '')
     + clientInstructies;
 
   try {
@@ -805,9 +933,11 @@ async function generateResponse() {
 
     if (data.error) {
       addMessage('Systeem', `Fout: ${data.error}`, 'system');
+      return null;
     } else {
       conversationHistory.push({ role: 'assistant', content: data.response });
       addMessage(persona.name, data.response, 'patient');
+      return data.response;
     }
   } catch (error) {
     // Remove typing indicator
@@ -817,6 +947,195 @@ async function generateResponse() {
       lastMessage.remove();
     }
     addMessage('Systeem', 'Kan geen verbinding maken met de AI-server. Start de server met: cd server && npm start', 'system');
+    return null;
+  }
+}
+
+async function generateResponse() {
+  await generateResponseAndReturn();
+}
+
+// --- Speech functions ---
+
+function updateMicButtonState(state: 'idle' | 'recording' | 'processing') {
+  const micBtn = document.querySelector('#mic-btn') as HTMLButtonElement;
+  const micStatus = micBtn?.querySelector('.mic-status') as HTMLSpanElement;
+  if (!micBtn) return;
+
+  micBtn.classList.remove('recording', 'processing');
+
+  switch (state) {
+    case 'idle':
+      micBtn.disabled = false;
+      if (micStatus) micStatus.textContent = 'Klik om te spreken';
+      break;
+    case 'recording':
+      micBtn.classList.add('recording');
+      micBtn.disabled = false;
+      if (micStatus) micStatus.textContent = 'Opnemen... klik om te stoppen';
+      break;
+    case 'processing':
+      micBtn.classList.add('processing');
+      micBtn.disabled = true;
+      if (micStatus) micStatus.textContent = 'Verwerken...';
+      break;
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+      handleSpeechInput(audioBlob);
+    };
+
+    mediaRecorder.start();
+    isRecording = true;
+    updateMicButtonState('recording');
+    startSilenceDetection(stream);
+  } catch (err) {
+    addMessage('Systeem', 'Kon microfoon niet openen. Controleer je browserinstellingen.', 'system');
+  }
+}
+
+function stopRecording() {
+  if (silenceTimer) {
+    clearTimeout(silenceTimer);
+    silenceTimer = null;
+  }
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  isRecording = false;
+}
+
+function startSilenceDetection(stream: MediaStream) {
+  audioContext = new AudioContext();
+  const source = audioContext.createMediaStreamSource(stream);
+  const analyser = audioContext.createAnalyser();
+  analyser.fftSize = 2048;
+  source.connect(analyser);
+
+  const dataArray = new Uint8Array(analyser.frequencyBinCount);
+  let silenceStart: number | null = null;
+  const SILENCE_THRESHOLD = 15;
+  const SILENCE_DURATION = 1500; // 1.5 seconds
+
+  function checkSilence() {
+    if (!isRecording) return;
+
+    analyser.getByteFrequencyData(dataArray);
+    const average = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
+
+    if (average < SILENCE_THRESHOLD) {
+      if (!silenceStart) silenceStart = Date.now();
+      else if (Date.now() - silenceStart > SILENCE_DURATION) {
+        stopRecording();
+        return;
+      }
+    } else {
+      silenceStart = null;
+    }
+
+    silenceTimer = window.setTimeout(checkSilence, 100);
+  }
+
+  // Wait a bit before starting silence detection to avoid instant stop
+  silenceTimer = window.setTimeout(checkSilence, 1000);
+}
+
+async function handleSpeechInput(audioBlob: Blob) {
+  updateMicButtonState('processing');
+
+  try {
+    // Send audio to STT endpoint
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
+
+    const sttResponse = await fetch(`${API_BASE}/api/speech-to-text`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const sttData = await sttResponse.json();
+
+    if (sttData.error) {
+      addMessage('Systeem', `Spraakherkenning fout: ${sttData.error}`, 'system');
+      updateMicButtonState('idle');
+      return;
+    }
+
+    const transcript = sttData.transcript?.trim();
+    if (!transcript) {
+      addMessage('Systeem', 'Geen spraak herkend. Probeer opnieuw.', 'system');
+      updateMicButtonState('idle');
+      return;
+    }
+
+    // Add transcript to chat
+    addMessage('Jij (Student)', transcript, 'student');
+    conversationHistory.push({ role: 'user', content: transcript });
+
+    // Show typing indicator
+    addMessage(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Cliënt'), '*denkt na...*', 'patient');
+
+    // Generate response
+    const responseText = await generateResponseAndReturn();
+
+    // Speak the response
+    if (responseText && speechMode) {
+      await speakResponse(responseText);
+    }
+  } catch (error) {
+    addMessage('Systeem', 'Fout bij spraakverwerking.', 'system');
+  }
+
+  updateMicButtonState('idle');
+}
+
+async function speakResponse(text: string) {
+  try {
+    const response = await fetch(`${API_BASE}/api/text-to-speech`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      console.error('TTS error:', await response.text());
+      return;
+    }
+
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+
+    await new Promise<void>((resolve) => {
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        resolve();
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        resolve();
+      };
+      audio.play();
+    });
+  } catch (error) {
+    console.error('TTS playback error:', error);
   }
 }
 
