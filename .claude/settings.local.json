@@ -14,7 +14,11 @@
       "Bash(npx vite:*)",
       "Bash(npx tsc:*)",
       "Bash(node:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(git push:*)",
+      "Bash(index)",
+      "Bash(config)",
+      "Bash(vite \")"
     ]
   }
 }
