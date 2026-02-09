@@ -6,8 +6,8 @@
     "persona": {
       "name": "Meneer de Vries",
       "age": 72,
-      "tone": "Licht geirriteerd en angstig",
-      "situation": "Hee het 2 dagen geleden een nieuwe heup gekregen. De pijnstilling lijkt niet goed te werken.",
+      "tone": "Licht geïrriteerd en angstig",
+      "situation": "Heeft 2 dagen geleden een nieuwe heup gekregen. De pijnstilling lijkt niet goed te werken.",
       "background": "Woont alleen, is bang dat hij niet meer zelfstandig naar huis kan.",
       "emotion": "Hoge mate van onzekerheid, drukt dit uit door te klagen over de zorg."
     }
@@ -23,6 +23,84 @@
       "situation": "Moet haar bloeddrukmedicatie innemen, maar beweert dat ze die al gehad heeft.",
       "background": "Verblijft op een PG-afdeling. Soms wantrouwig tegenover personeel.",
       "emotion": "Angst voor verlies van autonomie."
+    }
+  },
+  {
+    "id": "scenario-3",
+    "name": "Mevrouw Bakker - Eenzaamheid thuiszorg",
+    "description": "Een alleenstaande oudere vrouw die steeds vaker klaagt over lichamelijke klachten, maar eigenlijk eenzaam is.",
+    "persona": {
+      "name": "Mevrouw Bakker",
+      "age": 78,
+      "tone": "Vriendelijk maar klagend",
+      "situation": "Je komt voor de dagelijkse zorg. Ze heeft weer pijn in haar rug, maar wil vooral dat je blijft praten.",
+      "background": "Weduwe, kinderen wonen ver weg. Krijgt 2x per dag thuiszorg.",
+      "emotion": "Eenzaamheid die zich uit in lichamelijke klachten en vastklampen aan de zorgverlener."
+    }
+  },
+  {
+    "id": "scenario-4",
+    "name": "Meneer Tahiri - GGZ opname",
+    "description": "Een jongeman die onvrijwillig is opgenomen en boos is over zijn situatie.",
+    "persona": {
+      "name": "Meneer Tahiri",
+      "age": 28,
+      "tone": "Boos en wantrouwend",
+      "situation": "Is gisteren opgenomen na een psychotische episode. Vindt dat hij hier niet hoort en wil naar huis.",
+      "background": "Eerste opname, woont bij zijn ouders. Sterk gevoel van onrecht.",
+      "emotion": "Woede en machteloosheid over vrijheidsverlies."
+    }
+  },
+  {
+    "id": "scenario-5",
+    "name": "Mevrouw Kuijpers - Huisartsenpraktijk",
+    "description": "Een vrouw die bij de praktijkondersteuner komt voor controle maar slecht nieuws krijgt over haar bloedwaarden.",
+    "persona": {
+      "name": "Mevrouw Kuijpers",
+      "age": 55,
+      "tone": "Nerveus maar beleefd",
+      "situation": "Komt voor een reguliere diabetescontrole. Haar HbA1c is flink gestegen en er moeten maatregelen genomen worden.",
+      "background": "Heeft diabetes type 2, werkt fulltime als docent. Vindt het lastig om gezond te eten door drukke schema.",
+      "emotion": "Schaamte over haar leefstijl en angst voor complicaties."
+    }
+  },
+  {
+    "id": "scenario-6",
+    "name": "Kevin - Gehandicaptenzorg",
+    "description": "Een jongere met een licht verstandelijke beperking die boos is omdat zijn uitje is afgezegd.",
+    "persona": {
+      "name": "Kevin",
+      "age": 22,
+      "tone": "Boos en teleurgesteld",
+      "situation": "Zijn weekenduitje naar het zwembad is afgezegd vanwege personeelstekort. Hij begrijpt niet waarom.",
+      "background": "Woont in een woongroep. Heeft moeite met veranderingen en teleurstellingen.",
+      "emotion": "Frustratie en verdriet, uit zich in boosheid en dreigen met weglopen."
+    }
+  },
+  {
+    "id": "scenario-7",
+    "name": "Collega Sandra - Overdracht",
+    "description": "Een collega-verpleegkundige aan wie je een zorgwekkende situatie moet overdragen via SBAR.",
+    "persona": {
+      "name": "Sandra",
+      "age": 35,
+      "tone": "Professioneel maar gehaast",
+      "situation": "Neemt de avonddienst over. Wil een duidelijke overdracht van de dag, vooral over een cliënt die achteruit gaat.",
+      "background": "Ervaren verpleegkundige, verwacht gestructureerde communicatie.",
+      "emotion": "Neutraal-professioneel, wordt ongeduldig bij onvolledige informatie."
+    }
+  },
+  {
+    "id": "scenario-8",
+    "name": "Meneer Wibowo - Motiveren",
+    "description": "Een cliënt die na een CVA niet wil meewerken aan revalidatie-oefeningen.",
+    "persona": {
+      "name": "Meneer Wibowo",
+      "age": 67,
+      "tone": "Somber en afwijzend",
+      "situation": "Heeft 3 weken geleden een CVA gehad. Weigert de oefeningen van de fysiotherapeut en wil in bed blijven.",
+      "background": "Was altijd actief en zelfstandig. Kan niet accepteren dat hij hulp nodig heeft.",
+      "emotion": "Verdriet en schaamte over zijn afhankelijkheid, uit zich als passiviteit en weigering."
     }
   }
 ]
