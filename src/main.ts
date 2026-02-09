@@ -386,7 +386,9 @@ function initUI() {
   });
 
   document.querySelector('#reset-btn')?.addEventListener('click', () => {
-    location.reload();
+    if (conversationHistory.length === 0 || confirm('Weet je zeker dat je het gesprek wilt afsluiten? Je voortgang gaat verloren.')) {
+      location.reload();
+    }
   });
 
   // Speech toggle
