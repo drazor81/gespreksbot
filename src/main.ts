@@ -1646,37 +1646,24 @@ async function endConversation() {
     return;
   }
 
-  isWaitingForResponse = true;
   const input = document.querySelector<HTMLInputElement>('#user-input');
   const submitBtn = document.querySelector<HTMLButtonElement>('#input-form button[type="submit"]');
   const endBtn = document.querySelector<HTMLButtonElement>('#end-conversation-btn');
-  if (input) input.disabled = true;
+
+  // Immediately close conversation
+  conversationClosed = true;
+
+  if (input) {
+    input.value = '';
+    input.disabled = true;
+    input.placeholder = 'Gesprek afgerond. Bekijk nu feedback.';
+  }
   if (submitBtn) submitBtn.disabled = true;
   if (endBtn) endBtn.disabled = true;
 
-  const closingMessage = 'Ik rond het gesprek nu af. Dank u wel voor het gesprek.';
-  addMessage('Jij (Student)', closingMessage, 'student');
-  conversationHistory.push({ role: 'user', content: closingMessage });
-  updateChatSessionMeta();
-  addTypingIndicator(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Client'), 'patient');
+  addMessage('Systeem', 'Je hebt het gesprek afgerond. Je kunt nu feedback bekijken.', 'system');
+  showToast('Gesprek afgerond. Feedback is nu beschikbaar.', 'success');
 
-  const result = await generateResponseAndReturn();
-  if (result) {
-    conversationClosed = true;
-    if (input) {
-      input.value = '';
-      input.disabled = true;
-      input.placeholder = 'Gesprek afgerond. Bekijk nu feedback.';
-    }
-    if (submitBtn) submitBtn.disabled = true;
-    addMessage('Systeem', 'Gesprek is afgerond. Je kunt nu feedback bekijken.', 'system');
-    showToast('Gesprek afgerond. Feedback is nu beschikbaar.', 'success');
-  }
-
-  isWaitingForResponse = false;
-  if (input && !conversationClosed) input.disabled = false;
-  if (submitBtn && !conversationClosed) submitBtn.disabled = false;
-  if (endBtn) endBtn.disabled = false;
   updateChatSessionMeta();
 }
 
