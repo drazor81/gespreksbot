@@ -37,6 +37,14 @@ const kennisbank: Record<string, Kennisitem> = {
   'STARR': starr,
 };
 
+export function getKorteUitleg(id: string): string {
+  if (id === 'Vrije oefening') {
+    return 'Oefen vrij zonder specifiek leerdoel. Je kunt alle gesprekstechnieken inzetten.';
+  }
+  const item = kennisbank[id];
+  return item ? item.korteUitleg : '';
+}
+
 // Haal kennis op voor geselecteerde leerdoelen
 export function getKennisVoorLeerdoelen(leerdoelen: string[]): Kennisitem[] {
   return leerdoelen

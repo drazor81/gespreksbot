@@ -2,7 +2,7 @@ import './style.css'
 import personasData from '../personas.json'
 import { SYSTEM_PROMPT_MBO_V2 } from './prompts/system-prompt'
 import { FEEDBACK_PROMPT } from './prompts/feedback-prompt'
-import { getClientInstructies, getCoachContext, getTheorieVoorStudent } from './knowledge'
+import { getClientInstructies, getCoachContext, getTheorieVoorStudent, getKorteUitleg } from './knowledge'
 
 interface Persona {
   name: string;
@@ -217,7 +217,13 @@ function initUI() {
           <label>Leerdoelen:</label>
           <div class="checkbox-group">
             ${SETTINGS_OPTIONS.leerdoelen.map(l => `
-              <label><input type="checkbox" name="leerdoel" value="${l}" ${l === 'LSD' ? 'checked' : ''}> ${l}</label>
+              <label class="leerdoel-label">
+                <input type="checkbox" name="leerdoel" value="${l}" ${l === 'LSD' ? 'checked' : ''}>
+                <span class="leerdoel-text">
+                  <span class="leerdoel-naam">${l}</span>
+                  <span class="leerdoel-uitleg">${getKorteUitleg(l)}</span>
+                </span>
+              </label>
             `).join('')}
           </div>
           <small class="leerdoel-hint">Maximaal 2 leerdoelen tegelijk</small>
