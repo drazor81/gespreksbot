@@ -2,7 +2,7 @@ import './style.css'
 import personasData from '../personas.json'
 import { SYSTEM_PROMPT_MBO_V2 } from './prompts/system-prompt'
 import { FEEDBACK_PROMPT } from './prompts/feedback-prompt'
-import { getClientInstructies, getCoachContext, getTheorieVoorStudent, getKorteUitleg } from './knowledge'
+import { getClientInstructies, getCoachContext, getTheorieVoorStudent, getKorteUitleg, getKennisVoorLeerdoelen } from './knowledge'
 
 interface Persona {
   name: string;
@@ -193,6 +193,26 @@ let selectedSettings = {
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
+function populateChecklist() {
+  const body = document.querySelector('#checklist-body') as HTMLDivElement;
+  if (!body) return;
+  const kennis = getKennisVoorLeerdoelen(selectedSettings.leerdoelen);
+  if (kennis.length === 0) {
+    body.innerHTML = '<p class="checklist-empty">Geen leerdoelen geselecteerd.</p>';
+    return;
+  }
+  let html = '';
+  for (const k of kennis) {
+    html += `<div class="checklist-item"><strong>${k.naam}</strong>`;
+    html += `<p>${k.korteUitleg}</p><ul>`;
+    for (const [, beschrijving] of Object.entries(k.technieken)) {
+      html += `<li>${beschrijving}</li>`;
+    }
+    html += `</ul></div>`;
+  }
+  body.innerHTML = html;
+}
+
 function initUI() {
   app.innerHTML = `
     <header>
@@ -273,8 +293,16 @@ function initUI() {
     </div>
     <div id="chat-container" style="display: none;"></div>
     <div id="input-area" style="display: none;">
+      <div id="checklist-panel" class="checklist-panel" style="display: none;">
+        <div class="checklist-header" id="checklist-close">
+          <span>📋 Geheugensteuntje</span>
+          <button type="button" class="checklist-close-btn">&times;</button>
+        </div>
+        <div class="checklist-body" id="checklist-body"></div>
+      </div>
       <div class="input-toolbar">
         <button type="button" id="theory-btn" title="Bekijk theorie">📚 Theorie</button>
+        <button type="button" id="checklist-btn" title="Geheugensteuntje">📋 Checklist</button>
         <button type="button" id="hint-btn" title="Vraag een tip">💡 Tip</button>
         <button type="button" id="feedback-btn" title="Vraag feedback">📋 Feedback</button>
       </div>
@@ -463,6 +491,19 @@ function initUI() {
     selectedSettings.leerdoelen = currentLeerdoelen;
     showTheory();
     selectedSettings.leerdoelen = previousLeerdoelen;
+  });
+
+  document.querySelector('#checklist-btn')?.addEventListener('click', () => {
+    const panel = document.querySelector('#checklist-panel') as HTMLDivElement;
+    if (panel) {
+      const isVisible = panel.style.display !== 'none';
+      if (!isVisible) populateChecklist();
+      panel.style.display = isVisible ? 'none' : 'block';
+    }
+  });
+  document.querySelector('#checklist-close')?.addEventListener('click', () => {
+    const panel = document.querySelector('#checklist-panel') as HTMLDivElement;
+    if (panel) panel.style.display = 'none';
   });
 }
 
