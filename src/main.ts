@@ -685,14 +685,14 @@ function initUI() {
 
       <h3>Kies een startscenario:</h3>
       <p id="scenario-prefill-message" class="scenario-prefill-message" aria-live="polite"></p>
-      <div class="scenario-grid">
-        ${scenarios.map(s => `
-          <div class="scenario-card predefined" data-id="${s.id}" role="button" tabindex="0" aria-label="Kies scenario ${s.name}">
-            <strong>${s.name}</strong><br>
-            <small>${s.description}</small>
-          </div>
-        `).join('')}
+      <div class="setting-group">
+        <select id="predefined-scenario-select">
+          <option value="" disabled selected>Kies een scenario...</option>
+          ${scenarios.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+        </select>
       </div>
+      <div id="selected-scenario-description" class="scenario-description-box" style="display: none;"></div>
+      <button type="button" id="start-predefined-btn" class="secondary-btn" style="display: none; width: 100%; margin-top: 0.5rem;">Start dit scenario</button>
     </div>
     <div id="chat-session-meta" class="chat-session-meta" style="display: none;">
       <div id="chat-context-bar" class="chat-context-bar"></div>
@@ -877,21 +877,44 @@ function initUI() {
     }
   });
 
-  const cards = document.querySelectorAll('.scenario-card.predefined');
-  cards.forEach(card => {
-    const useCardScenario = () => {
-      const id = card.getAttribute('data-id');
-      if (id) startScenario(id);
-    };
+  const scenarioSelect = document.querySelector('#predefined-scenario-select') as HTMLSelectElement;
+  const descriptionBox = document.querySelector('#selected-scenario-description') as HTMLDivElement;
+  const startScenarioBtn = document.querySelector('#start-predefined-btn') as HTMLButtonElement;
 
-    card.addEventListener('click', useCardScenario);
-    card.addEventListener('keydown', (e) => {
-      const keyboardEvent = e as KeyboardEvent;
-      if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
-        keyboardEvent.preventDefault();
-        useCardScenario();
-      }
-    });
+  scenarioSelect?.addEventListener('change', (e) => {
+    const id = (e.target as HTMLSelectElement).value;
+    const scenario = scenarios.find(s => s.id === id);
+    if (!scenario) return;
+
+    descriptionBox.style.display = 'block';
+    descriptionBox.innerHTML = `<strong>${scenario.name}</strong>${scenario.description}`;
+
+    startScenarioBtn.style.display = 'block';
+
+    // Automatically prefill settings when selecting (preview)
+    const settingSelect = document.querySelector('#setting-select') as HTMLSelectElement | null;
+    const scenarioTypeSelect = document.querySelector('#scenario-type-select') as HTMLSelectElement | null;
+    const archetypeSelect = document.querySelector('#archetype-select') as HTMLSelectElement | null;
+    const moeilijkheidSelect = document.querySelector('#moeilijkheid-select') as HTMLSelectElement | null;
+    const checkboxes = document.querySelectorAll('input[name="leerdoel"]');
+
+    if (settingSelect && scenario.setting) settingSelect.value = scenario.setting;
+    if (scenarioTypeSelect && scenario.scenarioType) scenarioTypeSelect.value = scenario.scenarioType;
+    if (archetypeSelect && scenario.archetype) archetypeSelect.value = scenario.archetype;
+    if (moeilijkheidSelect && scenario.moeilijkheid) moeilijkheidSelect.value = scenario.moeilijkheid;
+
+    if (scenario.recommendedLeerdoelen) {
+      checkboxes.forEach(cb => {
+        const input = cb as HTMLInputElement;
+        input.checked = scenario.recommendedLeerdoelen!.includes(input.value);
+      });
+      updateStartButtonState();
+    }
+  });
+
+  startScenarioBtn?.addEventListener('click', () => {
+    const id = scenarioSelect.value;
+    if (id) startScenario(id);
   });
 
   const form = document.querySelector<HTMLFormElement>('#input-form');
@@ -1314,9 +1337,12 @@ function startScenario(id: string) {
   if (archetypeGroup) archetypeGroup.style.display = selectedSettings.scenarioType === 'Eigen scenario' ? 'none' : 'flex';
   if (customArchetypeGroup) customArchetypeGroup.style.display = selectedSettings.archetype === 'Eigen type' ? 'flex' : 'none';
 
-  document.querySelectorAll('.scenario-card.predefined').forEach(card => {
-    card.classList.toggle('selected', card.getAttribute('data-id') === id);
-  });
+  const scenarioSelect = document.querySelector('#predefined-scenario-select') as HTMLSelectElement | null;
+  if (scenarioSelect && scenarioSelect.value !== id) {
+    scenarioSelect.value = id;
+    // Trigger change event to show description if set programmatically
+    scenarioSelect.dispatchEvent(new Event('change'));
+  }
 
   if (scenarioPrefillMessage) {
     scenarioPrefillMessage.textContent = `Startpunt geladen: ${preset.name}. Kies eventueel andere leerdoelen of niveau en klik daarna op 'Start maatwerk gesprek'.`;
