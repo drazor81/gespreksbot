@@ -181,12 +181,12 @@ De Gespreksbot Zorg is vakinhoudelijk sterk (uitgebreide kennisbank, rubrics, ze
 
 | # | Verbetering | Bron |
 |---|-------------|------|
-| 12 | Typing-dots animatie i.p.v. "denkt na..." | UX #7 |
-| 13 | Schermovergang-animaties (fade/slide) | UX #10 |
+| 12 | Typing-dots animatie i.p.v. "denkt na..." | UX |
+| 13 | Schermovergang-animaties (fade/slide) | UX |
 | 14 | Toast/snackbar voor bevestigingsmeldingen | UX |
-| 15 | Docentdashboard met klasoverzicht | Docent #1 |
-| 16 | iOS scroll-optimalisatie (overscroll-behavior) | UX #12 |
-| 17 | Typografie-hierarchie vereenvoudigen (3-4 stappen) | UX #11 |
+| 15 | Docentdashboard met klasoverzicht | Docent |
+| 16 | iOS scroll-optimalisatie (overscroll-behavior) | UX |
+| 17 | Typografie-hierarchie vereenvoudigen (3-4 stappen) | UX |
 
 ---
 
