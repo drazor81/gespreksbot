@@ -860,7 +860,38 @@ Geef nu je feedback volgens de voorgeschreven structuur.`;
 }
 
 function formatFeedback(text: string): string {
-  return text
+  // Extract SCORES block
+  let scoreHtml = '';
+  const scoresMatch = text.match(/<!--SCORES\n([\s\S]*?)SCORES-->/);
+  if (scoresMatch) {
+    const lines = scoresMatch[1].trim().split('\n').filter(l => l.includes('|'));
+    // Skip header line if present
+    const dataLines = lines.filter(l => !l.startsWith('leerdoel|'));
+    const grouped: Record<string, { criterium: string; score: string }[]> = {};
+    for (const line of dataLines) {
+      const [leerdoel, criterium, score] = line.split('|').map(s => s.trim());
+      if (!leerdoel || !criterium || !score) continue;
+      if (!grouped[leerdoel]) grouped[leerdoel] = [];
+      grouped[leerdoel].push({ criterium, score });
+    }
+
+    if (Object.keys(grouped).length > 0) {
+      scoreHtml = '<div class="score-table-container">';
+      for (const [leerdoel, criteria] of Object.entries(grouped)) {
+        scoreHtml += `<div class="score-leerdoel-label">${leerdoel}</div>`;
+        for (const { criterium, score } of criteria) {
+          const scoreClass = score === 'goed' ? 'score-goed' : score === 'voldoende' ? 'score-voldoende' : 'score-onvoldoende';
+          scoreHtml += `<div class="score-row"><span class="score-dot ${scoreClass}"></span><span class="score-criterium">${criterium}</span><span class="score-label ${scoreClass}">${score}</span></div>`;
+        }
+      }
+      scoreHtml += '</div>';
+    }
+
+    // Remove SCORES block from text
+    text = text.replace(/<!--SCORES\n[\s\S]*?SCORES-->\n*/, '');
+  }
+
+  const feedbackHtml = text
     .replace(/### (.*)/g, '<h4>$1</h4>')
     .replace(/## (.*)/g, '<h3>$1</h3>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
@@ -868,6 +899,8 @@ function formatFeedback(text: string): string {
     .replace(/\n- /g, '<br>• ')
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>');
+
+  return scoreHtml + feedbackHtml;
 }
 
 function copyFeedback() {

@@ -49,4 +49,17 @@ Sluit af met een oprecht, motiverend compliment dat de student aanmoedigt om ver
 ## Rubric
 
 {{RUBRIC}}
+
+## Scoretabel (VERPLICHT)
+
+Begin je feedback ALTIJD met een scoretabel in exact dit format:
+
+<!--SCORES
+leerdoel|criterium|score
+LSD|Luisteren|goed
+LSD|Samenvatten|voldoende
+SCORES-->
+
+Gebruik als score alleen: "goed", "voldoende", of "onvoldoende".
+Neem alle criteria op uit de rubric. Zet dit blok VOOR je geschreven feedback.
 `;
