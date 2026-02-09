@@ -139,10 +139,11 @@ export function getTheorieVoorStudent(leerdoelen: string[]): string {
     theorie += `\n\n**Dit moet je vermijden:**\n${k.voorbeeldenFout.map(v => `- ${v}`).join('\n')}`;
 
     if (k.rubric && k.rubric.length > 0) {
-      theorie += `\n\n**Beoordelingscriteria:**`;
+      theorie += `\n\n<h3>Beoordelingscriteria</h3><div class="rubric-container">`;
       for (const r of k.rubric) {
-        theorie += `\n- **${r.criterium}:** Goed = ${r.goed} | Voldoende = ${r.voldoende} | Onvoldoende = ${r.onvoldoende}`;
+        theorie += `<div class="rubric-item"><strong>${r.criterium}</strong><div class="rubric-levels"><div class="rubric-level good"><span class="rubric-label">Goed</span><span>${r.goed}</span></div><div class="rubric-level sufficient"><span class="rubric-label">Voldoende</span><span>${r.voldoende}</span></div><div class="rubric-level insufficient"><span class="rubric-label">Onvoldoende</span><span>${r.onvoldoende}</span></div></div></div>`;
       }
+      theorie += `</div>`;
     }
 
     return theorie;
