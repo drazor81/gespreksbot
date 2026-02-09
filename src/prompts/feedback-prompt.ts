@@ -50,6 +50,13 @@ Sluit af met een oprecht, motiverend compliment dat de student aanmoedigt om ver
 
 {{RUBRIC}}
 
+## Zelfbeoordeling van de student
+
+De student heeft zichzelf als volgt beoordeeld:
+{{SELF_ASSESSMENT}}
+
+Reageer hier kort op in je feedback. Als de student zichzelf overschat, benoem dit tactvol. Als de student te streng is, benadruk wat er wél goed ging.
+
 ## Scoretabel (VERPLICHT)
 
 Begin je feedback ALTIJD met een scoretabel in exact dit format:

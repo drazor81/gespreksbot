@@ -39,6 +39,7 @@ let micStream: MediaStream | null = null;
 const scenarios: Scenario[] = personasData;
 let currentScenario: Scenario | null = null;
 let isWaitingForResponse = false;
+let selfAssessment: Record<string, string> = {};
 
 const SETTINGS_OPTIONS = {
   setting: ["Verpleeghuis", "Thuiszorg", "Ziekenhuis", "GGZ", "Gehandicaptenzorg", "Huisartsenpraktijk"],
@@ -785,26 +786,54 @@ function closeTheory() {
   modal.style.display = 'none';
 }
 
-async function showFeedback() {
-  if (conversationHistory.length < 2) {
-    addMessage('Systeem', 'Voer eerst een gesprek voordat je feedback vraagt.', 'system');
-    return;
+function buildSelfAssessmentForm(leerdoelen: string[]): string {
+  const kennis = getKennisVoorLeerdoelen(leerdoelen);
+  if (kennis.length === 0) return '';
+
+  let html = '<div class="self-assessment"><h3>Hoe vond je zelf dat het ging?</h3><p class="sa-intro">Beoordeel jezelf voordat je de AI-feedback ziet.</p>';
+  for (const k of kennis) {
+    html += `<fieldset class="sa-fieldset"><legend>${k.naam}</legend><div class="sa-options">`;
+    const options = [
+      { value: 'goed', label: '😊 Dit ging goed' },
+      { value: 'twijfel', label: '🤔 Twijfel' },
+      { value: 'beter', label: '😬 Dit kan beter' }
+    ];
+    for (const opt of options) {
+      html += `<label class="sa-option"><input type="radio" name="sa-${k.id}" value="${opt.value}"><span>${opt.label}</span></label>`;
+    }
+    html += '</div></fieldset>';
   }
+  html += '<button type="button" id="sa-submit-btn" class="sa-submit-btn">Bekijk AI-feedback</button></div>';
+  return html;
+}
 
-  // Hide chat and input, show feedback screen
-  document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'none';
-  document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'none';
-  const feedbackScreen = document.querySelector<HTMLDivElement>('#feedback-screen')!;
-  feedbackScreen.style.display = 'flex';
+function buildSelfAssessmentSummary(): string {
+  const entries = Object.entries(selfAssessment);
+  if (entries.length === 0) return '';
 
-  // Copy conversation to feedback panel
-  const gesprekContent = document.querySelector('#feedback-gesprek-content')!;
-  const chatContainer = document.querySelector('#chat-container')!;
-  gesprekContent.innerHTML = chatContainer.innerHTML;
+  const emojiMap: Record<string, string> = { goed: '🟢', twijfel: '🟡', beter: '🔴' };
+  const labelMap: Record<string, string> = { goed: 'ging goed', twijfel: 'twijfel', beter: 'kan beter' };
 
-  // Generate feedback via API
+  let html = '<div class="sa-summary"><strong>Jouw zelfbeoordeling:</strong>';
+  for (const [leerdoel, score] of entries) {
+    html += `<span class="sa-summary-item">${emojiMap[score] || '⚪'} ${leerdoel}: ${labelMap[score] || score}</span>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function buildSelfAssessmentContext(): string {
+  const entries = Object.entries(selfAssessment);
+  if (entries.length === 0) return 'De student heeft geen zelfbeoordeling ingevuld.';
+
+  const labelMap: Record<string, string> = { goed: 'Dit ging goed', twijfel: 'Twijfel', beter: 'Dit kan beter' };
+  return entries.map(([leerdoel, score]) => `- ${leerdoel}: ${labelMap[score] || score}`).join('\n');
+}
+
+async function generateAIFeedback() {
   const feedbackContent = document.querySelector('#feedback-content')!;
-  feedbackContent.innerHTML = '<p class="feedback-loading">Feedback wordt gegenereerd...</p>';
+  const summaryHtml = buildSelfAssessmentSummary();
+  feedbackContent.innerHTML = summaryHtml + '<p class="feedback-loading">Feedback wordt gegenereerd...</p>';
 
   const transcript = conversationHistory.map(msg => {
     const speaker = msg.role === 'user' ? 'Student' : `${isCollegaMode ? 'Collega' : 'Cliënt'} (${currentScenario?.persona.name || (isCollegaMode ? 'de collega' : 'de cliënt')})`;
@@ -813,11 +842,13 @@ async function showFeedback() {
 
   const coachKennis = getCoachContext(selectedSettings.leerdoelen);
   const rubricKennis = getRubricContext(selectedSettings.leerdoelen);
+  const selfAssessmentContext = buildSelfAssessmentContext();
 
   const feedbackSystemPrompt = FEEDBACK_PROMPT
     .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
     .replace('{{COACH_KENNIS}}', coachKennis)
-    .replace('{{RUBRIC}}', rubricKennis);
+    .replace('{{RUBRIC}}', rubricKennis)
+    .replace('{{SELF_ASSESSMENT}}', selfAssessmentContext);
 
   const feedbackUserPrompt = `Hier is het volledige gesprek tussen de student en de cliënt:
 
@@ -848,14 +879,72 @@ Geef nu je feedback volgens de voorgeschreven structuur.`;
     const data = await response.json();
 
     if (data.error) {
-      feedbackContent.innerHTML = `<p class="feedback-error">Kon geen feedback genereren: ${data.error}</p>`;
+      feedbackContent.innerHTML = summaryHtml + `<p class="feedback-error">Kon geen feedback genereren: ${data.error}</p>`;
     } else {
-      feedbackContent.innerHTML = formatFeedback(data.response);
+      feedbackContent.innerHTML = summaryHtml + formatFeedback(data.response);
       const copyBtn = document.querySelector('#copy-feedback-btn') as HTMLButtonElement;
       if (copyBtn) copyBtn.style.display = 'inline-flex';
     }
   } catch (error) {
-    feedbackContent.innerHTML = '<p class="feedback-error">Kon geen verbinding maken met de server.</p>';
+    feedbackContent.innerHTML = summaryHtml + '<p class="feedback-error">Kon geen verbinding maken met de server.</p>';
+  }
+}
+
+async function showFeedback() {
+  if (conversationHistory.length < 2) {
+    addMessage('Systeem', 'Voer eerst een gesprek voordat je feedback vraagt.', 'system');
+    return;
+  }
+
+  // Hide chat and input, show feedback screen
+  document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'none';
+  document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'none';
+  const feedbackScreen = document.querySelector<HTMLDivElement>('#feedback-screen')!;
+  feedbackScreen.style.display = 'flex';
+
+  // Copy conversation to feedback panel
+  const gesprekContent = document.querySelector('#feedback-gesprek-content')!;
+  const chatContainer = document.querySelector('#chat-container')!;
+  gesprekContent.innerHTML = chatContainer.innerHTML;
+
+  // Show self-assessment form first
+  const feedbackContent = document.querySelector('#feedback-content')!;
+  const saForm = buildSelfAssessmentForm(selectedSettings.leerdoelen);
+
+  if (saForm) {
+    feedbackContent.innerHTML = saForm;
+
+    document.querySelector('#sa-submit-btn')?.addEventListener('click', () => {
+      // Collect self-assessment answers
+      selfAssessment = {};
+      const kennis = getKennisVoorLeerdoelen(selectedSettings.leerdoelen);
+      let allAnswered = true;
+      for (const k of kennis) {
+        const selected = document.querySelector(`input[name="sa-${k.id}"]:checked`) as HTMLInputElement;
+        if (selected) {
+          selfAssessment[k.naam] = selected.value;
+        } else {
+          allAnswered = false;
+        }
+      }
+
+      if (!allAnswered) {
+        const hint = document.querySelector('.sa-hint');
+        if (!hint) {
+          const p = document.createElement('p');
+          p.className = 'sa-hint';
+          p.textContent = 'Beoordeel alle leerdoelen voordat je verdergaat.';
+          document.querySelector('#sa-submit-btn')?.before(p);
+        }
+        return;
+      }
+
+      generateAIFeedback();
+    });
+  } else {
+    // No leerdoelen with knowledge — skip self-assessment
+    selfAssessment = {};
+    generateAIFeedback();
   }
 }
 
