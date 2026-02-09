@@ -47,9 +47,16 @@ export function getKorteUitleg(id: string): string {
 
 // Haal kennis op voor geselecteerde leerdoelen
 export function getKennisVoorLeerdoelen(leerdoelen: string[]): Kennisitem[] {
-  return leerdoelen
+  const specifiek = leerdoelen
     .filter(ld => ld !== 'Vrije oefening' && kennisbank[ld])
     .map(ld => kennisbank[ld]);
+
+  // Bij alleen "Vrije oefening": geef LSD als basistechniek mee
+  if (specifiek.length === 0 && leerdoelen.includes('Vrije oefening')) {
+    return [kennisbank['LSD']];
+  }
+
+  return specifiek;
 }
 
 // Genereer instructies voor de cliënt op basis van leerdoelen
