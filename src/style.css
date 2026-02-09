@@ -70,6 +70,22 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+#app.setup-mode,
+#app.feedback-mode {
+  max-width: 768px;
+}
+
+#app.chat-mode {
+  max-width: 520px;
+}
+
+@media (min-width: 1100px) {
+  #app.setup-mode,
+  #app.feedback-mode {
+    max-width: 1024px;
+  }
+}
+
 /* Header */
 header {
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-alt) 100%);
@@ -78,6 +94,21 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.help-btn {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 0.9375rem;
+  font-weight: 700;
 }
 
 header h1 {
@@ -308,11 +339,6 @@ header button:hover {
   color: #D97706;
 }
 
-.input-toolbar #feedback-btn:hover {
-  border-color: #10B981;
-  color: #059669;
-}
-
 .input-toolbar button:disabled {
   opacity: 0.5;
   cursor: wait;
@@ -387,6 +413,31 @@ header button:hover {
   box-shadow: var(--shadow);
 }
 
+.conversation-end-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.end-conversation-btn {
+  width: 100%;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.end-conversation-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
 /* Setup Screen */
 .scenario-selector {
   padding: 1.5rem;
@@ -417,6 +468,12 @@ header button:hover {
 
 .settings-panel h3::before {
   content: '⚙️';
+}
+
+.setup-intro {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.875rem;
 }
 
 .setting-group {
@@ -470,89 +527,97 @@ header button:hover {
   min-height: 70px;
 }
 
-/* Checkbox Group */
-.checkbox-group {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-  background: var(--bg-subtle);
-  padding: 0.75rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-}
-
-.checkbox-group label {
-  font-weight: 500;
+/* Leerdoel Chips */
+.leerdoel-limit {
   font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
   color: var(--text-secondary);
+  margin-bottom: 0.5rem;
 }
 
-.checkbox-group label:hover {
-  background: rgba(59, 130, 182, 0.1);
+#leerdoel-count {
+  font-weight: 700;
   color: var(--brand);
 }
 
-.checkbox-group input[type="checkbox"] {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  width: 24px;
-  height: 24px;
-  background: #FFFFFF;
-  border: 2px solid var(--border);
-  border-radius: 4px;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.15s;
+.leerdoel-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
 }
 
-.checkbox-group input[type="checkbox"]:checked {
-  background: var(--primary);
-  border-color: var(--primary);
+.leerdoel-group {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.625rem;
 }
 
-.checkbox-group input[type="checkbox"]:checked::after {
-  content: '✓';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.checkbox-group input[type="checkbox"]:hover:not(:disabled) {
-  border-color: var(--primary);
-}
-
-.checkbox-group input[type="checkbox"]:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.checkbox-group label:has(input:disabled) {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.leerdoel-hint {
+.leerdoel-group-title {
   font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 0.25rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
 }
 
-.leerdoel-label { align-items: flex-start !important; }
-.leerdoel-text { display: flex; flex-direction: column; gap: 0.125rem; }
-.leerdoel-naam { font-weight: 500; }
-.leerdoel-uitleg { font-size: 0.6875rem; font-weight: 400; color: var(--text-muted); line-height: 1.3; }
+.leerdoel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.leerdoel-chip {
+  position: relative;
+  min-height: 2.125rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  transition: all 0.15s;
+  min-width: 140px;
+}
+
+.leerdoel-chip input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.leerdoel-chip-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.leerdoel-chip-desc {
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  color: var(--text-muted);
+}
+
+.leerdoel-chip:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.leerdoel-chip:has(input:checked) {
+  border-color: var(--brand);
+  background: rgba(59, 130, 182, 0.08);
+  color: var(--text-primary);
+}
+
+.leerdoel-chip:has(input:disabled):not(:has(input:checked)) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .setup-theory-link { display: block; width: 100%; background: none; border: 1px dashed var(--border); color: var(--brand); font-size: 0.8125rem; font-weight: 500; padding: 0.5rem; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; margin-top: 0.5rem; font-family: inherit; text-align: center; }
 .setup-theory-link:hover { background: rgba(59,130,182,0.06); border-color: var(--brand); }
@@ -636,6 +701,13 @@ header button:hover {
   margin-bottom: 0.875rem;
 }
 
+.scenario-prefill-message {
+  min-height: 1rem;
+  font-size: 0.75rem;
+  color: var(--brand);
+  margin-bottom: 0.5rem;
+}
+
 /* Scenario Cards */
 .scenario-grid {
   display: grid;
@@ -657,6 +729,12 @@ header button:hover {
   border-color: var(--brand);
   background: rgba(59, 130, 182, 0.04);
   transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.scenario-card.selected {
+  border-color: var(--brand);
+  background: rgba(59, 130, 182, 0.08);
   box-shadow: var(--shadow);
 }
 
@@ -688,8 +766,8 @@ header button:hover {
     box-shadow: none;
   }
 
-  .checkbox-group {
-    grid-template-columns: 1fr;
+  .leerdoel-chips {
+    flex-direction: column;
   }
 
   .scenario-selector {
@@ -717,6 +795,20 @@ header button:hover {
     border-right: none;
     border-bottom: 1px solid var(--border);
     max-height: 35vh;
+  }
+}
+
+@media (max-width: 768px) {
+  .feedback-tabs {
+    display: flex;
+  }
+
+  #feedback-screen.tab-gesprek .feedback-panel {
+    display: none;
+  }
+
+  #feedback-screen.tab-feedback .feedback-gesprek {
+    display: none;
   }
 }
 
@@ -932,6 +1024,33 @@ header button:hover {
 
 .feedback-meta-item strong {
   color: var(--text-primary);
+}
+
+.feedback-tabs {
+  display: none;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.feedback-tab {
+  flex: 1;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.feedback-tab.active {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: rgba(59, 130, 182, 0.08);
 }
 
 .feedback-container {
@@ -1454,7 +1573,9 @@ header button:hover {
   #chat-container,
   #new-conversation-btn,
   #theory-modal,
+  #help-modal,
   #confirm-modal,
+  .feedback-tabs,
   .feedback-panel-actions,
   .feedback-export-controls {
     display: none !important;
@@ -1489,3 +1610,5 @@ header button:hover {
     border-bottom: 1px solid #ccc;
   }
 }
+
+

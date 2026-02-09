@@ -18,6 +18,11 @@ interface Scenario {
   name: string;
   description: string;
   persona: Persona;
+  setting?: string;
+  scenarioType?: string;
+  archetype?: string;
+  moeilijkheid?: string;
+  recommendedLeerdoelen?: string[];
 }
 
 const SYSTEM_PROMPT_MBO = SYSTEM_PROMPT_MBO_V2;
@@ -41,6 +46,7 @@ let currentScenario: Scenario | null = null;
 let isWaitingForResponse = false;
 let selfAssessment: Record<string, string> = {};
 let conversationStartedAt: Date | null = null;
+let conversationClosed = false;
 
 const RECOMMENDED_MIN_TURNS = 6;
 const TARGET_TURNS = 8;
@@ -59,6 +65,13 @@ const SETTINGS_OPTIONS = {
   moeilijkheid: ["Basis", "Gemiddeld", "Uitdagend"],
   clientArchetype: ["Verwarde oudere", "Zorgmijdende cliënt", "Boze cliënt", "Angstige cliënt", "Collega", "Willekeurig", "Eigen type"]
 };
+
+const LEERDOEL_GROUPS: { title: string; items: string[] }[] = [
+  { title: 'Basistechnieken', items: ['LSD', 'OMA/ANNA', 'NIVEA'] },
+  { title: 'Structuurtechnieken', items: ['SBAR', 'STARR', 'Klinisch Redeneren'] },
+  { title: 'Specialistisch', items: ['MGV', '4G-model', 'De-escalatie'] },
+  { title: 'Vrij', items: ['Vrije oefening'] }
+];
 
 const MOEILIJKHEID_BESCHRIJVING: Record<string, string> = {
   'Basis': `Je bent coöperatief en open. Je vindt het fijn dat iemand naar je luistert. Je deelt informatie vrij makkelijk, maar je hebt nog steeds je eigen verhaal en emoties. Je geeft duidelijke antwoorden en werkt mee aan het gesprek. Als de student iets goed doet, reageer je positief en open je je verder.`,
@@ -237,15 +250,42 @@ function clearInlineError(id: string) {
   setInlineError(id, '');
 }
 
-function toggleWelcomeBody() {
-  const body = document.querySelector('#welcome-body') as HTMLDivElement | null;
-  const btn = document.querySelector('#welcome-toggle') as HTMLButtonElement | null;
-  if (!body || !btn) return;
+function buildLeerdoelSelectionHtml() {
+  return LEERDOEL_GROUPS.map(group => `
+    <div class="leerdoel-group">
+      <div class="leerdoel-group-title">${group.title}</div>
+      <div class="leerdoel-chips">
+        ${group.items.map(leerdoel => `
+          <label class="leerdoel-chip">
+            <input type="checkbox" name="leerdoel" value="${leerdoel}" ${leerdoel === 'LSD' ? 'checked' : ''}>
+            <span class="leerdoel-chip-name">${leerdoel}</span>
+            <span class="leerdoel-chip-desc">${getKorteUitleg(leerdoel)}</span>
+          </label>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
 
-  const shouldExpand = body.style.display === 'none';
-  body.style.display = shouldExpand ? 'block' : 'none';
-  btn.innerHTML = shouldExpand ? '&#9650;' : '&#9660;';
-  btn.setAttribute('aria-expanded', String(shouldExpand));
+function setAppMode(mode: 'setup' | 'chat' | 'feedback') {
+  app.classList.remove('setup-mode', 'chat-mode', 'feedback-mode');
+  app.classList.add(`${mode}-mode`);
+}
+
+function setFeedbackTab(tab: 'gesprek' | 'feedback') {
+  const feedbackScreen = document.querySelector('#feedback-screen') as HTMLDivElement | null;
+  const gesprekTab = document.querySelector('#feedback-tab-gesprek') as HTMLButtonElement | null;
+  const feedbackTab = document.querySelector('#feedback-tab-feedback') as HTMLButtonElement | null;
+  if (!feedbackScreen || !gesprekTab || !feedbackTab) return;
+
+  feedbackScreen.classList.toggle('tab-gesprek', tab === 'gesprek');
+  feedbackScreen.classList.toggle('tab-feedback', tab === 'feedback');
+
+  gesprekTab.classList.toggle('active', tab === 'gesprek');
+  feedbackTab.classList.toggle('active', tab === 'feedback');
+
+  gesprekTab.setAttribute('aria-selected', String(tab === 'gesprek'));
+  feedbackTab.setAttribute('aria-selected', String(tab === 'feedback'));
 }
 
 function setChecklistPanelVisibility(visible: boolean) {
@@ -270,6 +310,27 @@ function getScenarioLabelForUi() {
 
 function getStudentTurnCount() {
   return conversationHistory.filter(msg => msg.role === 'user').length;
+}
+
+function updateConversationActionButtons() {
+  const endButton = document.querySelector('#end-conversation-btn') as HTMLButtonElement | null;
+  const feedbackButton = document.querySelector('#feedback-btn') as HTMLButtonElement | null;
+  if (!endButton || !feedbackButton) return;
+
+  const turns = getStudentTurnCount();
+  if (conversationClosed) {
+    endButton.style.display = 'none';
+    feedbackButton.style.display = 'block';
+    return;
+  }
+
+  if (turns >= RECOMMENDED_MIN_TURNS) {
+    endButton.style.display = 'block';
+    feedbackButton.style.display = 'none';
+  } else {
+    endButton.style.display = 'none';
+    feedbackButton.style.display = 'none';
+  }
 }
 
 function updateChatSessionMeta() {
@@ -300,10 +361,13 @@ function updateChatSessionMeta() {
   let turnMessage = `Beurt ${turns} van ~${TARGET_TURNS}.`;
   if (turns < 4) {
     turnMessage += ' Probeer minimaal 6 beurten.';
+  } else if (conversationClosed) {
+    turnMessage += ' Gesprek is afgerond.';
   } else if (turns >= RECOMMENDED_MIN_TURNS) {
     turnMessage += ' Je kunt nu het gesprek afronden of doorgaan.';
   }
   turnStatus.textContent = turnMessage;
+  updateConversationActionButtons();
 }
 
 function getFormattedDateTime(date: Date) {
@@ -393,25 +457,15 @@ function initUI() {
   app.innerHTML = `
     <header>
       <h1>Gespreksbot Zorg (MBO 4)</h1>
-      <button type="button" id="reset-btn">Reset</button>
+      <div class="header-actions">
+        <button type="button" id="help-btn" class="help-btn" aria-label="Open hulp">?</button>
+        <button type="button" id="reset-btn">Reset</button>
+      </div>
     </header>
     <div id="setup-screen" class="scenario-selector">
-      <div class="welcome-card" id="welcome-card">
-        <div class="welcome-header">
-          <h3>Welkom bij de Gespreksbot Zorg</h3>
-          <button type="button" id="welcome-toggle" class="welcome-collapse-btn" aria-label="Inklappen of uitklappen" aria-expanded="true" aria-controls="welcome-body">&#9650;</button>
-        </div>
-        <div class="welcome-body" id="welcome-body">
-          <p>Oefen gesprekstechnieken met een virtuele client of collega. Zo werkt het:</p>
-          <ol>
-            <li><strong>Stel je gesprek in</strong> - Kies een setting, scenario, leerdoel en niveau hieronder.</li>
-            <li><strong>Voer het gesprek</strong> - Typ of spreek je antwoorden. Gebruik de knoppen voor tips en theorie.</li>
-            <li><strong>Vraag feedback</strong> - Klik op 'Feedback bekijken' voor een analyse van je gesprek.</li>
-          </ol>
-        </div>
-      </div>
       <div class="settings-panel">
         <h3>Instellingen</h3>
+        <p class="setup-intro">Kies een scenario en pas daarna leerdoelen en niveau aan.</p>
         <div class="setting-group">
           <label>Setting:</label>
           <select id="setting-select">${SETTINGS_OPTIONS.setting.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
@@ -426,18 +480,8 @@ function initUI() {
         </div>
         <div class="setting-group">
           <label>Leerdoelen:</label>
-          <div class="checkbox-group">
-            ${SETTINGS_OPTIONS.leerdoelen.map(l => `
-              <label class="leerdoel-label">
-                <input type="checkbox" name="leerdoel" value="${l}" ${l === 'LSD' ? 'checked' : ''}>
-                <span class="leerdoel-text">
-                  <span class="leerdoel-naam">${l}</span>
-                  <span class="leerdoel-uitleg">${getKorteUitleg(l)}</span>
-                </span>
-              </label>
-            `).join('')}
-          </div>
-          <small class="leerdoel-hint">Maximaal 2 leerdoelen tegelijk</small>
+          <div class="leerdoel-limit">Maximaal 2 tegelijk <span id="leerdoel-count">1/2</span></div>
+          <div class="leerdoel-groups">${buildLeerdoelSelectionHtml()}</div>
           <button type="button" id="setup-theory-btn" class="setup-theory-link">Bekijk theorie bij geselecteerde leerdoelen</button>
           <p id="setup-theory-error" class="inline-error" role="alert" aria-live="polite"></p>
         </div>
@@ -446,7 +490,7 @@ function initUI() {
           <select id="moeilijkheid-select">${SETTINGS_OPTIONS.moeilijkheid.map(m => `<option value="${m}" ${m === 'Gemiddeld' ? 'selected' : ''}>${m}</option>`).join('')}</select>
         </div>
         <div class="setting-group" id="archetype-group">
-          <label>Client Type:</label>
+          <label>Client type:</label>
           <select id="archetype-select">${SETTINGS_OPTIONS.clientArchetype.map(a => `<option value="${a}">${a}</option>`).join('')}</select>
         </div>
         <div class="setting-group" id="custom-archetype-group" style="display: none;">
@@ -459,10 +503,11 @@ function initUI() {
 
       <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #eee;">
 
-      <h3>Of kies een client:</h3>
+      <h3>Kies een startscenario:</h3>
+      <p id="scenario-prefill-message" class="scenario-prefill-message" aria-live="polite"></p>
       <div class="scenario-grid">
         ${scenarios.map(s => `
-          <div class="scenario-card predefined" data-id="${s.id}" role="button" tabindex="0" aria-label="Start scenario ${s.name}">
+          <div class="scenario-card predefined" data-id="${s.id}" role="button" tabindex="0" aria-label="Kies scenario ${s.name}">
             <strong>${s.name}</strong><br>
             <small>${s.description}</small>
           </div>
@@ -513,7 +558,10 @@ function initUI() {
           </div>
         </div>
       </div>
-      <button type="button" id="feedback-btn" class="feedback-action-btn" title="Rond het gesprek af en bekijk feedback">Feedback bekijken</button>
+      <div class="conversation-end-actions">
+        <button type="button" id="end-conversation-btn" class="end-conversation-btn" style="display: none;">Rond gesprek af</button>
+        <button type="button" id="feedback-btn" class="feedback-action-btn" title="Rond het gesprek af en bekijk feedback" style="display: none;">Feedback bekijken</button>
+      </div>
     </div>
     <div id="theory-modal" class="modal" style="display: none;">
       <div class="modal-content">
@@ -524,12 +572,33 @@ function initUI() {
         <div id="theory-content" class="modal-body"></div>
       </div>
     </div>
-    <div id="feedback-screen" style="display: none;">
+    <div id="help-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Hulp</h2>
+          <button type="button" id="close-help-btn" class="close-btn" aria-label="Sluit hulpvenster">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Oefen gesprekstechnieken met een virtuele client of collega. Zo werkt het:</p>
+          <ol>
+            <li><strong>Stel je gesprek in</strong> - Kies een scenario of vul zelf instellingen in.</li>
+            <li><strong>Voer het gesprek</strong> - Typ of spreek je antwoorden en gebruik Theorie, Checklist en Tip.</li>
+            <li><strong>Rond af</strong> - Gebruik na voldoende beurten de knop 'Rond gesprek af'.</li>
+            <li><strong>Vraag feedback</strong> - Bekijk daarna je analyse en exporteer naar PDF.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div id="feedback-screen" class="tab-feedback" style="display: none;">
       <div class="feedback-export-controls">
         <label for="student-name-input">Studentnaam (optioneel)</label>
         <input type="text" id="student-name-input" maxlength="100" placeholder="Bijv. Samira de Vries">
       </div>
       <div id="feedback-export-summary" class="feedback-export-summary"></div>
+      <div class="feedback-tabs" role="tablist" aria-label="Feedback onderdelen">
+        <button type="button" id="feedback-tab-gesprek" class="feedback-tab" role="tab" aria-selected="false">Gesprek</button>
+        <button type="button" id="feedback-tab-feedback" class="feedback-tab active" role="tab" aria-selected="true">Feedback</button>
+      </div>
       <div class="feedback-container">
         <div class="feedback-gesprek">
           <h3>Gesprek</h3>
@@ -577,10 +646,28 @@ function initUI() {
     startScenarioFromSettings();
   });
 
+  document.querySelector('#help-btn')?.addEventListener('click', () => {
+    const helpModal = document.querySelector('#help-modal') as HTMLDivElement | null;
+    if (helpModal) helpModal.style.display = 'flex';
+  });
+
+  document.querySelector('#close-help-btn')?.addEventListener('click', () => {
+    const helpModal = document.querySelector('#help-modal') as HTMLDivElement | null;
+    if (helpModal) helpModal.style.display = 'none';
+  });
+
+  document.querySelector('#help-modal')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).id === 'help-modal') {
+      const helpModal = document.querySelector('#help-modal') as HTMLDivElement | null;
+      if (helpModal) helpModal.style.display = 'none';
+    }
+  });
+
   document.querySelector('#scenario-type-select')?.addEventListener('change', (e) => {
     const value = (e.target as HTMLSelectElement).value;
     const customGroup = document.querySelector('#custom-scenario-group') as HTMLDivElement;
     const archetypeGroup = document.querySelector('#archetype-group') as HTMLDivElement;
+    const prefillMessage = document.querySelector('#scenario-prefill-message') as HTMLParagraphElement | null;
 
     if (customGroup) {
       customGroup.style.display = value === 'Eigen scenario' ? 'flex' : 'none';
@@ -588,6 +675,7 @@ function initUI() {
     if (archetypeGroup) {
       archetypeGroup.style.display = value === 'Eigen scenario' ? 'none' : 'flex';
     }
+    if (prefillMessage) prefillMessage.textContent = '';
   });
 
   document.querySelector('#archetype-select')?.addEventListener('change', (e) => {
@@ -600,17 +688,17 @@ function initUI() {
 
   const cards = document.querySelectorAll('.scenario-card.predefined');
   cards.forEach(card => {
-    const startCardScenario = () => {
+    const useCardScenario = () => {
       const id = card.getAttribute('data-id');
       if (id) startScenario(id);
     };
 
-    card.addEventListener('click', startCardScenario);
+    card.addEventListener('click', useCardScenario);
     card.addEventListener('keydown', (e) => {
       const keyboardEvent = e as KeyboardEvent;
       if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
         keyboardEvent.preventDefault();
-        startCardScenario();
+        useCardScenario();
       }
     });
   });
@@ -639,12 +727,24 @@ function initUI() {
     }
   });
 
+  document.querySelector('#end-conversation-btn')?.addEventListener('click', () => {
+    endConversation();
+  });
+
   document.querySelector('#feedback-btn')?.addEventListener('click', () => {
     showFeedback();
   });
 
   document.querySelector('#copy-feedback-btn')?.addEventListener('click', copyFeedback);
   document.querySelector('#export-feedback-btn')?.addEventListener('click', printFeedback);
+
+  document.querySelector('#feedback-tab-gesprek')?.addEventListener('click', () => {
+    setFeedbackTab('gesprek');
+  });
+
+  document.querySelector('#feedback-tab-feedback')?.addEventListener('click', () => {
+    setFeedbackTab('feedback');
+  });
 
   document.querySelector('#student-name-input')?.addEventListener('input', () => {
     renderFeedbackExportSummary();
@@ -685,15 +785,13 @@ function initUI() {
     }
   });
 
-  const checkboxGroup = document.querySelector('.checkbox-group');
-  checkboxGroup?.addEventListener('change', () => {
+  const leerdoelGroup = document.querySelector('.leerdoel-groups');
+  leerdoelGroup?.addEventListener('change', () => {
     clearInlineError('setup-error');
     clearInlineError('setup-theory-error');
     updateStartButtonState();
   });
   updateStartButtonState();
-
-  document.querySelector('#welcome-toggle')?.addEventListener('click', toggleWelcomeBody);
 
   document.querySelector('#setup-theory-btn')?.addEventListener('click', () => {
     const checkboxes = document.querySelectorAll('input[name="leerdoel"]:checked');
@@ -720,23 +818,27 @@ function initUI() {
     setChecklistPanelVisibility(false);
   });
 
+  setAppMode('setup');
+  setFeedbackTab('feedback');
   renderFeedbackExportSummary();
+  updateConversationActionButtons();
   updateChatSessionMeta();
 }
 
 function updateStartButtonState() {
   const MAX_LEERDOELEN = 2;
   const startBtn = document.querySelector('#start-btn') as HTMLButtonElement;
+  const countEl = document.querySelector('#leerdoel-count') as HTMLSpanElement | null;
   const checked = document.querySelectorAll('input[name="leerdoel"]:checked');
   const allCheckboxes = document.querySelectorAll('input[name="leerdoel"]');
 
   // Disable unchecked checkboxes when max is reached
   allCheckboxes.forEach(cb => {
     const input = cb as HTMLInputElement;
-    if (!input.checked) {
-      input.disabled = checked.length >= MAX_LEERDOELEN;
-    }
+    input.disabled = !input.checked && checked.length >= MAX_LEERDOELEN;
   });
+
+  if (countEl) countEl.textContent = `${checked.length}/${MAX_LEERDOELEN}`;
 
   if (startBtn) {
     if (checked.length === 0) {
@@ -784,9 +886,12 @@ async function startScenarioFromSettings() {
     }
   };
 
+  document.querySelectorAll('.scenario-card.predefined').forEach(card => card.classList.remove('selected'));
+
   conversationHistory = [];
   selfAssessment = {};
   conversationStartedAt = new Date();
+  conversationClosed = false;
   prepareChat();
   const scenarioLabel = selectedSettings.scenarioType === 'Eigen scenario' ? selectedSettings.customScenario.substring(0, 50) + '...' : selectedSettings.scenarioType;
   const rolLabel = isCollegaMode ? 'Collega' : 'Cliënt';
@@ -958,24 +1063,75 @@ Voorbeeld output:
 }
 
 function startScenario(id: string) {
-  currentScenario = scenarios.find(s => s.id === id) || null;
-  if (!currentScenario) return;
+  const preset = scenarios.find(s => s.id === id) || null;
+  if (!preset) return;
 
-  conversationHistory = [];
-  selfAssessment = {};
-  conversationStartedAt = new Date();
-  selectedSettings.scenarioType = currentScenario.name;
+  currentScenario = preset;
 
-  prepareChat();
-  addMessage('Systeem', `Je start het gesprek met ${currentScenario.persona.name}. Theorie: MBO 4 niveau.`, 'system');
-  updateChatSessionMeta();
+  selectedSettings.setting = preset.setting || selectedSettings.setting;
+  selectedSettings.scenarioType = preset.scenarioType || selectedSettings.scenarioType;
+  selectedSettings.archetype = preset.archetype || selectedSettings.archetype;
+  selectedSettings.moeilijkheid = preset.moeilijkheid || selectedSettings.moeilijkheid;
+  selectedSettings.customScenario = '';
+  selectedSettings.customArchetype = '';
+  if (preset.recommendedLeerdoelen && preset.recommendedLeerdoelen.length > 0) {
+    selectedSettings.leerdoelen = preset.recommendedLeerdoelen.slice(0, 2);
+  }
 
-  setTimeout(() => {
-    addMessage(currentScenario!.persona.name, `*${currentScenario!.persona.tone}* ${currentScenario!.persona.situation}`, 'patient');
-  }, 1000);
+  const settingSelect = document.querySelector('#setting-select') as HTMLSelectElement | null;
+  const scenarioTypeSelect = document.querySelector('#scenario-type-select') as HTMLSelectElement | null;
+  const archetypeSelect = document.querySelector('#archetype-select') as HTMLSelectElement | null;
+  const moeilijkheidSelect = document.querySelector('#moeilijkheid-select') as HTMLSelectElement | null;
+  const customScenarioInput = document.querySelector('#custom-scenario-input') as HTMLTextAreaElement | null;
+  const customArchetypeInput = document.querySelector('#custom-archetype-input') as HTMLInputElement | null;
+  const checkboxes = document.querySelectorAll('input[name="leerdoel"]');
+  const scenarioPrefillMessage = document.querySelector('#scenario-prefill-message') as HTMLParagraphElement | null;
+
+  if (settingSelect) settingSelect.value = selectedSettings.setting;
+  if (scenarioTypeSelect) scenarioTypeSelect.value = selectedSettings.scenarioType;
+  if (archetypeSelect) archetypeSelect.value = selectedSettings.archetype;
+  if (moeilijkheidSelect) moeilijkheidSelect.value = selectedSettings.moeilijkheid;
+  if (customScenarioInput) customScenarioInput.value = '';
+  if (customArchetypeInput) customArchetypeInput.value = '';
+
+  checkboxes.forEach(cb => {
+    const input = cb as HTMLInputElement;
+    input.checked = selectedSettings.leerdoelen.includes(input.value);
+  });
+  updateStartButtonState();
+
+  const customGroup = document.querySelector('#custom-scenario-group') as HTMLDivElement | null;
+  const archetypeGroup = document.querySelector('#archetype-group') as HTMLDivElement | null;
+  const customArchetypeGroup = document.querySelector('#custom-archetype-group') as HTMLDivElement | null;
+  if (customGroup) customGroup.style.display = selectedSettings.scenarioType === 'Eigen scenario' ? 'flex' : 'none';
+  if (archetypeGroup) archetypeGroup.style.display = selectedSettings.scenarioType === 'Eigen scenario' ? 'none' : 'flex';
+  if (customArchetypeGroup) customArchetypeGroup.style.display = selectedSettings.archetype === 'Eigen type' ? 'flex' : 'none';
+
+  document.querySelectorAll('.scenario-card.predefined').forEach(card => {
+    card.classList.toggle('selected', card.getAttribute('data-id') === id);
+  });
+
+  if (scenarioPrefillMessage) {
+    scenarioPrefillMessage.textContent = `Startpunt geladen: ${preset.name}. Kies eventueel andere leerdoelen of niveau en klik daarna op 'Start maatwerk gesprek'.`;
+  }
+
+  clearInlineError('setup-error');
+  clearInlineError('setup-theory-error');
+  document.querySelector('.settings-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function prepareChat() {
+  setAppMode('chat');
+  const feedbackScreen = document.querySelector('#feedback-screen') as HTMLDivElement | null;
+  if (feedbackScreen) feedbackScreen.style.display = 'none';
+  setFeedbackTab('feedback');
+  const input = document.querySelector('#user-input') as HTMLInputElement | null;
+  const submitBtn = document.querySelector('#input-form button[type="submit"]') as HTMLButtonElement | null;
+  if (input) {
+    input.disabled = false;
+    input.placeholder = 'Typ je bericht...';
+  }
+  if (submitBtn) submitBtn.disabled = false;
   document.querySelector<HTMLDivElement>('#setup-screen')!.style.display = 'none';
   document.querySelector<HTMLDivElement>('#chat-session-meta')!.style.display = 'flex';
   document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'flex';
@@ -1112,18 +1268,25 @@ Geef nu je feedback volgens de voorgeschreven structuur.`;
 }
 
 async function showFeedback() {
+  if (!conversationClosed) {
+    addMessage('Systeem', 'Rond eerst het gesprek af met de knop "Rond gesprek af".', 'system');
+    return;
+  }
+
   if (conversationHistory.length < 2) {
     addMessage('Systeem', 'Voer eerst een gesprek voordat je feedback vraagt.', 'system');
     return;
   }
 
   // Hide chat and input, show feedback screen
+  setAppMode('feedback');
   document.querySelector<HTMLDivElement>('#chat-session-meta')!.style.display = 'none';
   document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'none';
   document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'none';
   updateChatSessionMeta();
   const feedbackScreen = document.querySelector<HTMLDivElement>('#feedback-screen')!;
   feedbackScreen.style.display = 'flex';
+  setFeedbackTab('feedback');
   renderFeedbackExportSummary();
 
   // Copy conversation to feedback panel
@@ -1232,8 +1395,51 @@ function copyFeedback() {
   });
 }
 
+async function endConversation() {
+  if (isWaitingForResponse || conversationClosed) return;
+  if (liveConversationActive) stopLiveConversation();
+
+  if (getStudentTurnCount() < RECOMMENDED_MIN_TURNS) {
+    addMessage('Systeem', `Probeer minimaal ${RECOMMENDED_MIN_TURNS} beurten voordat je afrondt.`, 'system');
+    return;
+  }
+
+  isWaitingForResponse = true;
+  const input = document.querySelector<HTMLInputElement>('#user-input');
+  const submitBtn = document.querySelector<HTMLButtonElement>('#input-form button[type="submit"]');
+  const endBtn = document.querySelector<HTMLButtonElement>('#end-conversation-btn');
+  if (input) input.disabled = true;
+  if (submitBtn) submitBtn.disabled = true;
+  if (endBtn) endBtn.disabled = true;
+
+  const closingMessage = 'Ik rond het gesprek nu af. Dank u wel voor het gesprek.';
+  addMessage('Jij (Student)', closingMessage, 'student');
+  conversationHistory.push({ role: 'user', content: closingMessage });
+  updateChatSessionMeta();
+  addMessage(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'CliÃ«nt'), '*denkt na...*', 'patient');
+
+  const result = await generateResponseAndReturn();
+  if (result) {
+    conversationClosed = true;
+    if (input) {
+      input.value = '';
+      input.disabled = true;
+      input.placeholder = 'Gesprek afgerond. Bekijk nu feedback.';
+    }
+    if (submitBtn) submitBtn.disabled = true;
+    addMessage('Systeem', 'Gesprek is afgerond. Je kunt nu feedback bekijken.', 'system');
+  }
+
+  isWaitingForResponse = false;
+  if (input && !conversationClosed) input.disabled = false;
+  if (submitBtn && !conversationClosed) submitBtn.disabled = false;
+  if (endBtn) endBtn.disabled = false;
+  updateChatSessionMeta();
+}
+
 function handleSendMessage() {
   if (isWaitingForResponse) return;
+  if (conversationClosed) return;
   const input = document.querySelector<HTMLInputElement>('#user-input')!;
   const text = input.value.trim();
   if (!text) return;
@@ -1681,4 +1887,5 @@ async function speakResponse(text: string) {
 }
 
 initUI()
+
 
