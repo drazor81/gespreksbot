@@ -103,7 +103,7 @@ app.post('/api/chat', async (req, res) => {
         res.json({ response: textContent?.text || 'Geen antwoord ontvangen.' });
     } catch (error) {
         console.error('Anthropic API error:', error);
-        res.status(500).json({ error: error.message || 'Er ging iets mis met de AI.' });
+        res.status(500).json({ error: 'Er ging iets mis met de AI. Probeer het opnieuw.' });
     }
 });
 
@@ -137,7 +137,7 @@ app.post('/api/speech-to-text', upload.single('audio'), async (req, res) => {
         res.json({ transcript });
     } catch (error) {
         console.error('Speech-to-Text error:', error);
-        res.status(500).json({ error: error.message || 'Speech-to-Text fout.' });
+        res.status(500).json({ error: 'Spraakherkenning mislukt. Probeer het opnieuw.' });
     }
 });
 
@@ -170,7 +170,7 @@ app.post('/api/text-to-speech', async (req, res) => {
         res.send(Buffer.from(response.audioContent));
     } catch (error) {
         console.error('Text-to-Speech error:', error);
-        res.status(500).json({ error: error.message || 'Text-to-Speech fout.' });
+        res.status(500).json({ error: 'Spraaksynthese mislukt. Probeer het opnieuw.' });
     }
 });
 
