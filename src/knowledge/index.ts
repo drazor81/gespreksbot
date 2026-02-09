@@ -141,7 +141,7 @@ export function getTheorieVoorStudent(leerdoelen: string[]): string {
     if (k.rubric && k.rubric.length > 0) {
       theorie += `\n\n<h3>Beoordelingscriteria</h3><div class="rubric-container">`;
       for (const r of k.rubric) {
-        theorie += `<div class="rubric-item"><strong>${r.criterium}</strong><div class="rubric-levels"><div class="rubric-level good"><span class="rubric-label">Goed:</span><span>${r.goed}</span></div><div class="rubric-level sufficient"><span class="rubric-label">Voldoende:</span><span>${r.voldoende}</span></div><div class="rubric-level insufficient"><span class="rubric-label">Onvoldoende:</span><span>${r.onvoldoende}</span></div></div></div>`;
+        theorie += `<div class="rubric-item"><strong>${r.criterium}</strong><div class="rubric-levels"><div class="rubric-level good"><span class="rubric-label">Goed: </span><span>${r.goed}</span></div><div class="rubric-level sufficient"><span class="rubric-label">Voldoende: </span><span>${r.voldoende}</span></div><div class="rubric-level insufficient"><span class="rubric-label">Onvoldoende: </span><span>${r.onvoldoende}</span></div></div></div>`;
       }
       theorie += `</div>`;
     }
