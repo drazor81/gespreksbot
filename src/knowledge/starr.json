@@ -30,5 +30,19 @@
     "Let op of de student alle STARR-onderdelen doorloopt",
     "Check of de student de cliënt zelf laat reflecteren",
     "Kijk of de student open vragen stelt over elke fase"
+  ],
+  "rubric": [
+    {
+      "criterium": "Structuur (STARR-stappen)",
+      "onvoldoende": "Doorloopt niet of nauwelijks de STARR-stappen",
+      "voldoende": "Doorloopt enkele stappen maar mist onderdelen",
+      "goed": "Doorloopt alle STARR-stappen gestructureerd en volledig"
+    },
+    {
+      "criterium": "Reflectie uitlokken",
+      "onvoldoende": "Geeft zelf conclusies in plaats van te vragen",
+      "voldoende": "Vraagt naar reflectie maar stuurt te veel",
+      "goed": "Lokt zelfreflectie uit met open vragen, laat cliënt zelf inzichten formuleren"
+    }
   ]
 }

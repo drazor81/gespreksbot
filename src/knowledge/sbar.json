@@ -28,5 +28,31 @@
     "Let op of de student de SBAR-structuur volgt",
     "Check of alle vier de onderdelen worden benoemd",
     "Kijk of de student concrete observaties en metingen noemt"
+  ],
+  "rubric": [
+    {
+      "criterium": "Situation",
+      "onvoldoende": "Noemt niet wie de cliënt is of wat het probleem is",
+      "voldoende": "Benoemt de cliënt en het probleem maar mist details",
+      "goed": "Geeft helder en beknopt weer wie het is en wat er nu speelt"
+    },
+    {
+      "criterium": "Background",
+      "onvoldoende": "Geeft geen relevante achtergrond",
+      "voldoende": "Noemt enige voorgeschiedenis maar onvolledig",
+      "goed": "Geeft relevante voorgeschiedenis en context beknopt weer"
+    },
+    {
+      "criterium": "Assessment",
+      "onvoldoende": "Noemt geen eigen observaties of metingen",
+      "voldoende": "Deelt enkele observaties maar mist concrete metingen",
+      "goed": "Geeft concrete observaties en metingen, maakt eigen inschatting"
+    },
+    {
+      "criterium": "Recommendation",
+      "onvoldoende": "Formuleert geen voorstel of vraag",
+      "voldoende": "Doet een vaag voorstel zonder concrete actie",
+      "goed": "Formuleert duidelijk wat er nodig is of wat wordt gevraagd"
+    }
   ]
 }

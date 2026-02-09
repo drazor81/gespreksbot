@@ -25,5 +25,19 @@
     "Let op of de student ongevraagd advies geeft",
     "Check of de student aannames maakt zonder te verifiëren",
     "Kijk of de student de cliënt de ruimte geeft om zelf na te denken"
+  ],
+  "rubric": [
+    {
+      "criterium": "OMA (oordeelvrij)",
+      "onvoldoende": "Geeft ongevraagd advies of velt oordelen",
+      "voldoende": "Houdt meestal oordeel in maar geeft soms ongevraagd advies",
+      "goed": "Blijft consequent oordeelvrij, laat cliënt zelf nadenken"
+    },
+    {
+      "criterium": "ANNA (navragen)",
+      "onvoldoende": "Maakt aannames zonder te checken",
+      "voldoende": "Vraagt soms na maar maakt ook aannames",
+      "goed": "Vraagt consequent na, neemt niets aan, checkt interpretaties"
+    }
   ]
 }

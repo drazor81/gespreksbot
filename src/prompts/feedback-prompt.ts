@@ -16,8 +16,9 @@ De student oefende met: {{LEERDOELEN}}
 Bespreek per leerdoel hoe de student de techniek(en) heeft ingezet:
 - Welke elementen zijn goed toegepast? Geef voorbeelden uit het gesprek.
 - Welke elementen zijn gemist of kunnen beter? Leg uit waarom en hoe.
+- Geef per criterium aan of het onvoldoende, voldoende of goed was (gebruik de rubric hieronder).
 
-Gebruik hierbij de kennisbank hieronder om te beoordelen of de student de technieken correct toepaste.
+Gebruik hierbij de kennisbank en rubric hieronder om te beoordelen of de student de technieken correct toepaste.
 
 ### 3. Verbeterpunten
 Geef 1 tot 3 concrete verbeterpunten voor de volgende keer. Formuleer ze als suggesties, niet als kritiek:
@@ -39,9 +40,13 @@ Sluit af met een oprecht, motiverend compliment dat de student aanmoedigt om ver
 - Gebruik **vetgedrukt** voor kopjes en belangrijke punten
 - Houd de feedback bondig maar compleet (niet langer dan 400 woorden)
 - Als het gesprek erg kort was (minder dan 3 beurten), benoem dit en geef algemene tips
-- Geef GEEN cijfers of scores, alleen geschreven feedback
+- Gebruik de rubric-niveaus (onvoldoende/voldoende/goed) per criterium
 
 ## Kennisbank
 
 {{COACH_KENNIS}}
+
+## Rubric
+
+{{RUBRIC}}
 `;

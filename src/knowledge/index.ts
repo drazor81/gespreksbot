@@ -9,11 +9,18 @@ import vierGModel from './4g-model.json';
 import deEscalatie from './de-escalatie.json';
 import starr from './starr.json';
 
+export interface RubricCriterium {
+  criterium: string;
+  onvoldoende: string;
+  voldoende: string;
+  goed: string;
+}
+
 export interface Kennisitem {
   id: string;
   naam: string;
   korteUitleg: string;
-  uitgebreideTheorie?: string;  // Optioneel veld voor extra theorie
+  uitgebreideTheorie?: string;
   technieken: Record<string, string>;
   voorbeeldenGoed: string[];
   voorbeeldenFout: string[];
@@ -22,6 +29,7 @@ export interface Kennisitem {
     bijFout: string;
   };
   coachTips: string[];
+  rubric?: RubricCriterium[];
 }
 
 // Map van leerdoel-ID naar kennisitem
@@ -79,6 +87,20 @@ ${instructies}
 `;
 }
 
+// Genereer rubric context voor feedback prompt
+export function getRubricContext(leerdoelen: string[]): string {
+  const kennis = getKennisVoorLeerdoelen(leerdoelen);
+  if (kennis.length === 0) return '';
+  return kennis
+    .filter(k => k.rubric && k.rubric.length > 0)
+    .map(k => {
+      const rows = k.rubric!.map(r =>
+        `- ${r.criterium}: onvoldoende="${r.onvoldoende}" | voldoende="${r.voldoende}" | goed="${r.goed}"`
+      ).join('\n');
+      return `**${k.naam} rubric:**\n${rows}`;
+    }).join('\n\n');
+}
+
 // Genereer context voor de coach op basis van leerdoelen
 export function getCoachContext(leerdoelen: string[]): string {
   const kennis = getKennisVoorLeerdoelen(leerdoelen);
@@ -115,6 +137,13 @@ export function getTheorieVoorStudent(leerdoelen: string[]): string {
 
     theorie += `\n\n**Voorbeelden van goede zinnen:**\n${k.voorbeeldenGoed.map(v => `- ${v}`).join('\n')}`;
     theorie += `\n\n**Dit moet je vermijden:**\n${k.voorbeeldenFout.map(v => `- ${v}`).join('\n')}`;
+
+    if (k.rubric && k.rubric.length > 0) {
+      theorie += `\n\n**Beoordelingscriteria:**`;
+      for (const r of k.rubric) {
+        theorie += `\n- **${r.criterium}:** Goed = ${r.goed} | Voldoende = ${r.voldoende} | Onvoldoende = ${r.onvoldoende}`;
+      }
+    }
 
     return theorie;
   }).join('\n\n---\n\n');

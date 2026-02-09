@@ -29,5 +29,25 @@
     "Let op of de student systematisch informatie verzamelt",
     "Check of de student observaties koppelt aan mogelijke problemen",
     "Kijk of de student doorvraagt bij onduidelijkheden"
+  ],
+  "rubric": [
+    {
+      "criterium": "Informatie verzamelen",
+      "onvoldoende": "Verzamelt geen of onvoldoende gegevens, stelt weinig vragen",
+      "voldoende": "Stelt vragen maar mist belangrijke aspecten",
+      "goed": "Verzamelt systematisch informatie via anamnese en observatie"
+    },
+    {
+      "criterium": "Probleemstelling",
+      "onvoldoende": "Kan geen verband leggen tussen klachten en oorzaken",
+      "voldoende": "Herkent een probleem maar formuleert het onvolledig",
+      "goed": "Formuleert een duidelijke probleemstelling op basis van gegevens"
+    },
+    {
+      "criterium": "Beleid",
+      "onvoldoende": "Komt niet tot een concreet voorstel of interventie",
+      "voldoende": "Doet een voorstel maar onderbouwt het onvoldoende",
+      "goed": "Stelt onderbouwde interventies voor gekoppeld aan het probleem"
+    }
   ]
 }

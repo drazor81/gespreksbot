@@ -2,7 +2,7 @@ import './style.css'
 import personasData from '../personas.json'
 import { SYSTEM_PROMPT_MBO_V2 } from './prompts/system-prompt'
 import { FEEDBACK_PROMPT } from './prompts/feedback-prompt'
-import { getClientInstructies, getCoachContext, getTheorieVoorStudent, getKorteUitleg, getKennisVoorLeerdoelen } from './knowledge'
+import { getClientInstructies, getCoachContext, getTheorieVoorStudent, getKorteUitleg, getKennisVoorLeerdoelen, getRubricContext } from './knowledge'
 
 interface Persona {
   name: string;
@@ -812,10 +812,12 @@ async function showFeedback() {
   }).join('\n\n');
 
   const coachKennis = getCoachContext(selectedSettings.leerdoelen);
+  const rubricKennis = getRubricContext(selectedSettings.leerdoelen);
 
   const feedbackSystemPrompt = FEEDBACK_PROMPT
     .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
-    .replace('{{COACH_KENNIS}}', coachKennis);
+    .replace('{{COACH_KENNIS}}', coachKennis)
+    .replace('{{RUBRIC}}', rubricKennis);
 
   const feedbackUserPrompt = `Hier is het volledige gesprek tussen de student en de cliënt:
 

@@ -28,5 +28,25 @@
     "Let op of de student de emotie erkent zonder te oordelen",
     "Check of de student rustig blijft en niet mee-escaleert",
     "Kijk of de student ruimte geeft en niet in de verdediging schiet"
+  ],
+  "rubric": [
+    {
+      "criterium": "Rustig blijven",
+      "onvoldoende": "Escaleert mee, wordt defensief of geïrriteerd",
+      "voldoende": "Blijft redelijk kalm maar reageert soms defensief",
+      "goed": "Blijft consequent kalm, praat rustig en beheerst"
+    },
+    {
+      "criterium": "Emotie erkennen",
+      "onvoldoende": "Negeert de emotie of bagatelliseert deze",
+      "voldoende": "Erkent de emotie maar niet overtuigend",
+      "goed": "Erkent de emotie expliciet zonder het gedrag goed te keuren"
+    },
+    {
+      "criterium": "Grenzen stellen",
+      "onvoldoende": "Stelt geen grenzen of dreigt met consequenties",
+      "voldoende": "Stelt grenzen maar op een onhandige manier",
+      "goed": "Stelt rustig en duidelijk grenzen terwijl hulp wordt aangeboden"
+    }
   ]
 }

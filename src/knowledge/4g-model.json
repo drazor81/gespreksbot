@@ -28,5 +28,31 @@
     "Let op of de student ik-boodschappen gebruikt in plaats van jij-boodschappen",
     "Check of de student gedrag beschrijft zonder te oordelen",
     "Kijk of de student ruimte laat voor de reactie van de cliënt"
+  ],
+  "rubric": [
+    {
+      "criterium": "Gedrag",
+      "onvoldoende": "Beschrijft geen concreet gedrag of oordeelt direct",
+      "voldoende": "Benoemt gedrag maar mengt het met oordeel",
+      "goed": "Beschrijft objectief en specifiek waargenomen gedrag"
+    },
+    {
+      "criterium": "Gevoel",
+      "onvoldoende": "Benoemt geen eigen gevoel of gebruikt jij-boodschap",
+      "voldoende": "Benoemt gevoel maar niet overtuigend verbonden aan gedrag",
+      "goed": "Gebruikt ik-boodschap en koppelt gevoel aan het gedrag"
+    },
+    {
+      "criterium": "Gevolg",
+      "onvoldoende": "Legt niet uit wat het effect van het gedrag is",
+      "voldoende": "Benoemt een gevolg maar vaag of onvolledig",
+      "goed": "Legt helder uit wat het effect is voor de zorg of de relatie"
+    },
+    {
+      "criterium": "Gewenst",
+      "onvoldoende": "Geeft geen alternatief of formuleert het als eis",
+      "voldoende": "Geeft een suggestie maar weinig uitnodigend",
+      "goed": "Formuleert gewenst gedrag als vraag of wens, uitnodigend"
+    }
   ]
 }

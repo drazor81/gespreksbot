@@ -27,5 +27,25 @@
     "Let op of de student 'moetjes' vermijdt",
     "Check of de student de ambivalentie van de cliënt erkent",
     "Kijk of de student verandertaal uitlokt in plaats van afdwingt"
+  ],
+  "rubric": [
+    {
+      "criterium": "Open vragen",
+      "onvoldoende": "Stelt voornamelijk gesloten of sturende vragen",
+      "voldoende": "Stelt soms open vragen maar stuurt ook richting verandering",
+      "goed": "Stelt open vragen die uitnodigen tot nadenken over verandering"
+    },
+    {
+      "criterium": "Reflecteren",
+      "onvoldoende": "Reflecteert niet of geeft eigen mening",
+      "voldoende": "Reflecteert soms maar mist ambivalentie",
+      "goed": "Reflecteert adequaat en verkent ambivalentie van de cliënt"
+    },
+    {
+      "criterium": "Weerstand",
+      "onvoldoende": "Gaat tegen de weerstand in of forceert verandering",
+      "voldoende": "Herkent weerstand maar weet er niet goed mee om te gaan",
+      "goed": "Beweegt mee met weerstand, verlaagt druk, respecteert autonomie"
+    }
   ]
 }

@@ -26,5 +26,25 @@
     "Let op of de student open vragen stelt (wie/wat/hoe) of alleen gesloten vragen (ja/nee)",
     "Check of de student samenvat voordat die doorvraagt",
     "Kijk of de student de cliënt laat uitpraten"
+  ],
+  "rubric": [
+    {
+      "criterium": "Luisteren",
+      "onvoldoende": "Onderbreekt de cliënt, stelt alleen gesloten vragen",
+      "voldoende": "Laat de cliënt uitpraten, stelt soms open vragen",
+      "goed": "Luistert actief, reageert op non-verbale signalen, geeft ruimte"
+    },
+    {
+      "criterium": "Samenvatten",
+      "onvoldoende": "Vat niet samen of papegaait letterlijk",
+      "voldoende": "Vat af en toe samen in eigen woorden",
+      "goed": "Vat regelmatig samen inclusief emotie, checkt of het klopt"
+    },
+    {
+      "criterium": "Doorvragen",
+      "onvoldoende": "Vraagt niet door of stelt alleen ja/nee vragen",
+      "voldoende": "Stelt soms open vervolgvragen",
+      "goed": "Vraagt gericht door met open vragen, verdiept het gesprek"
+    }
   ]
 }

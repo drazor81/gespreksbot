@@ -25,5 +25,13 @@
     "Let op zinnen die beginnen met 'U voelt vast...', 'U wilt waarschijnlijk...'",
     "Check of de student vraagt naar gevoelens in plaats van ze in te vullen",
     "Kijk of de student ruimte laat voor het eigen verhaal van de cliënt"
+  ],
+  "rubric": [
+    {
+      "criterium": "Niet invullen",
+      "onvoldoende": "Vult gevoelens of gedachten in voor de cliënt",
+      "voldoende": "Vult soms nog in maar corrigeert zichzelf",
+      "goed": "Vraagt consequent naar gevoelens en gedachten zonder in te vullen"
+    }
   ]
 }
