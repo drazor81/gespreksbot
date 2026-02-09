@@ -7,6 +7,7 @@ import { dirname, join } from 'path';
 import speech from '@google-cloud/speech';
 import textToSpeech from '@google-cloud/text-to-speech';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -30,6 +31,16 @@ app.use(cors({
   }
 }));
 app.use(express.json());
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Te veel verzoeken. Probeer het over een minuut opnieuw.' }
+});
+
+app.use('/api/', apiLimiter);
 
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
