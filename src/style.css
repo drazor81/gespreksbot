@@ -495,6 +495,9 @@ header button:hover {
 .leerdoel-naam { font-weight: 500; }
 .leerdoel-uitleg { font-size: 0.6875rem; font-weight: 400; color: var(--text-muted); line-height: 1.3; }
 
+.setup-theory-link { display: block; width: 100%; background: none; border: 1px dashed var(--border); color: var(--brand); font-size: 0.8125rem; font-weight: 500; padding: 0.5rem; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; margin-top: 0.5rem; font-family: inherit; text-align: center; }
+.setup-theory-link:hover { background: rgba(59,130,182,0.06); border-color: var(--brand); }
+
 /* Welcome Card */
 .welcome-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; box-shadow: var(--shadow-sm); overflow: hidden; }
 .welcome-header { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1.25rem; cursor: pointer; background: linear-gradient(135deg, rgba(59,130,182,0.08) 0%, rgba(0,183,195,0.08) 100%); border-bottom: 1px solid var(--border-light); }

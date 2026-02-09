@@ -242,6 +242,7 @@ function initUI() {
             `).join('')}
           </div>
           <small class="leerdoel-hint">Maximaal 2 leerdoelen tegelijk</small>
+          <button type="button" id="setup-theory-btn" class="setup-theory-link">📚 Bekijk theorie bij geselecteerde leerdoelen</button>
         </div>
         <div class="setting-group">
           <label>Niveau:</label>
@@ -449,6 +450,19 @@ function initUI() {
       body.style.display = isCollapsed ? 'block' : 'none';
       btn.innerHTML = isCollapsed ? '&#9650;' : '&#9660;';
     }
+  });
+
+  document.querySelector('#setup-theory-btn')?.addEventListener('click', () => {
+    const checkboxes = document.querySelectorAll('input[name="leerdoel"]:checked');
+    const currentLeerdoelen = Array.from(checkboxes).map(cb => (cb as HTMLInputElement).value);
+    if (currentLeerdoelen.length === 0) {
+      alert('Selecteer eerst minimaal 1 leerdoel om theorie te bekijken.');
+      return;
+    }
+    const previousLeerdoelen = selectedSettings.leerdoelen;
+    selectedSettings.leerdoelen = currentLeerdoelen;
+    showTheory();
+    selectedSettings.leerdoelen = previousLeerdoelen;
   });
 }
 
