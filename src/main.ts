@@ -33,6 +33,8 @@ let audioChunks: Blob[] = [];
 let isRecording = false;
 let audioContext: AudioContext | null = null;
 let silenceTimer: number | null = null;
+let liveConversationActive = false;
+let micStream: MediaStream | null = null;
 
 const scenarios: Scenario[] = personasData;
 let currentScenario: Scenario | null = null;
@@ -266,13 +268,19 @@ function initUI() {
         <button type="submit">Verstuur</button>
       </form>
       <div id="speech-input" style="display: none;">
-        <button type="button" id="mic-btn" class="mic-button" title="Klik om te spreken">
-          <svg class="mic-icon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-          </svg>
-          <span class="mic-status">Klik om te spreken</span>
-        </button>
+        <div class="live-conversation">
+          <button type="button" id="live-conv-btn" class="live-conv-button" title="Start live gesprek">
+            <svg class="mic-icon" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+              <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+            <span class="live-conv-label">Start gesprek</span>
+          </button>
+          <div class="live-status" id="live-status" style="display: none;">
+            <div class="live-indicator"></div>
+            <span class="live-status-text">Luistert...</span>
+          </div>
+        </div>
       </div>
     </div>
     <div id="theory-modal" class="modal" style="display: none;">
@@ -392,16 +400,16 @@ function initUI() {
     } else {
       inputForm.style.display = 'flex';
       speechInput.style.display = 'none';
-      if (isRecording) stopRecording();
+      if (liveConversationActive) stopLiveConversation();
     }
   });
 
-  // Mic button
-  document.querySelector('#mic-btn')?.addEventListener('click', () => {
-    if (isRecording) {
-      stopRecording();
+  // Live conversation button
+  document.querySelector('#live-conv-btn')?.addEventListener('click', () => {
+    if (liveConversationActive) {
+      stopLiveConversation();
     } else {
-      startRecording();
+      startLiveConversation();
     }
   });
 
@@ -785,31 +793,42 @@ function addMessage(sender: string, text: string, type: 'student' | 'patient' | 
   const msgDiv = document.createElement('div');
   msgDiv.className = `message ${type}`;
 
-  // Format text: convert *text* to styled non-verbal behavior
-  const formattedText = formatMessageText(text);
+  const strong = document.createElement('strong');
+  strong.textContent = sender;
 
-  msgDiv.innerHTML = `
-    <strong>${sender}</strong>
-    <div class="message-content">${formattedText}</div>
-    <div class="message-info">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-  `;
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'message-content';
+  contentDiv.appendChild(formatMessageSafe(text));
+
+  const infoDiv = document.createElement('div');
+  infoDiv.className = 'message-info';
+  infoDiv.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  msgDiv.appendChild(strong);
+  msgDiv.appendChild(contentDiv);
+  msgDiv.appendChild(infoDiv);
   container.appendChild(msgDiv);
   container.scrollTop = container.scrollHeight;
 }
 
-function formatMessageText(text: string): string {
-  // Split by asterisk patterns and format non-verbal cues
-  // Pattern: *text* becomes styled block
+function formatMessageSafe(text: string): DocumentFragment {
+  const fragment = document.createDocumentFragment();
   const parts = text.split(/(\*[^*]+\*)/g);
 
-  return parts.map(part => {
+  for (const part of parts) {
     if (part.startsWith('*') && part.endsWith('*')) {
-      // Non-verbal behavior - extract content and style it
-      const content = part.slice(1, -1);
-      return `<div class="nonverbal">${content}</div>`;
+      const div = document.createElement('div');
+      div.className = 'nonverbal';
+      div.textContent = part.slice(1, -1);
+      fragment.appendChild(div);
+    } else if (part.trim()) {
+      const span = document.createElement('span');
+      span.textContent = part;
+      fragment.appendChild(span);
     }
-    return part.trim() ? `<span>${part}</span>` : '';
-  }).join('');
+  }
+
+  return fragment;
 }
 
 async function getHint() {
@@ -955,59 +974,105 @@ async function generateResponse() {
   await generateResponseAndReturn();
 }
 
-// --- Speech functions ---
+// --- Live conversation functions ---
 
-function updateMicButtonState(state: 'idle' | 'recording' | 'processing') {
-  const micBtn = document.querySelector('#mic-btn') as HTMLButtonElement;
-  const micStatus = micBtn?.querySelector('.mic-status') as HTMLSpanElement;
-  if (!micBtn) return;
+function updateLiveStatus(state: 'idle' | 'listening' | 'processing' | 'speaking') {
+  const btn = document.querySelector('#live-conv-btn') as HTMLButtonElement;
+  const label = btn?.querySelector('.live-conv-label') as HTMLSpanElement;
+  const statusEl = document.querySelector('#live-status') as HTMLElement;
+  const statusText = statusEl?.querySelector('.live-status-text') as HTMLSpanElement;
+  const indicator = statusEl?.querySelector('.live-indicator') as HTMLElement;
 
-  micBtn.classList.remove('recording', 'processing');
+  if (!btn || !statusEl) return;
+
+  btn.classList.remove('active');
+  statusEl.style.display = 'none';
+  indicator?.classList.remove('listening', 'processing', 'speaking');
 
   switch (state) {
     case 'idle':
-      micBtn.disabled = false;
-      if (micStatus) micStatus.textContent = 'Klik om te spreken';
+      if (label) label.textContent = 'Start gesprek';
       break;
-    case 'recording':
-      micBtn.classList.add('recording');
-      micBtn.disabled = false;
-      if (micStatus) micStatus.textContent = 'Opnemen... klik om te stoppen';
+    case 'listening':
+      btn.classList.add('active');
+      if (label) label.textContent = 'Stop gesprek';
+      statusEl.style.display = 'flex';
+      indicator?.classList.add('listening');
+      if (statusText) statusText.textContent = 'Luistert...';
       break;
     case 'processing':
-      micBtn.classList.add('processing');
-      micBtn.disabled = true;
-      if (micStatus) micStatus.textContent = 'Verwerken...';
+      btn.classList.add('active');
+      if (label) label.textContent = 'Stop gesprek';
+      statusEl.style.display = 'flex';
+      indicator?.classList.add('processing');
+      if (statusText) statusText.textContent = 'Verwerkt...';
+      break;
+    case 'speaking':
+      btn.classList.add('active');
+      if (label) label.textContent = 'Stop gesprek';
+      statusEl.style.display = 'flex';
+      indicator?.classList.add('speaking');
+      if (statusText) statusText.textContent = 'Spreekt...';
       break;
   }
 }
 
-async function startRecording() {
+async function startLiveConversation() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunks.push(e.data);
-    };
-
-    mediaRecorder.onstop = () => {
-      stream.getTracks().forEach(t => t.stop());
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-      handleSpeechInput(audioBlob);
-    };
-
-    mediaRecorder.start();
-    isRecording = true;
-    updateMicButtonState('recording');
-    startSilenceDetection(stream);
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    liveConversationActive = true;
+    startListeningCycle();
   } catch (err) {
     addMessage('Systeem', 'Kon microfoon niet openen. Controleer je browserinstellingen.', 'system');
   }
 }
 
-function stopRecording() {
+function stopLiveConversation() {
+  liveConversationActive = false;
+  // Stop any active recording
+  if (silenceTimer) {
+    clearTimeout(silenceTimer);
+    silenceTimer = null;
+  }
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  isRecording = false;
+  // Release microphone
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
+  }
+  updateLiveStatus('idle');
+}
+
+function startListeningCycle() {
+  if (!liveConversationActive || !micStream) return;
+
+  audioChunks = [];
+  mediaRecorder = new MediaRecorder(micStream, { mimeType: 'audio/webm;codecs=opus' });
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) audioChunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = () => {
+    if (!liveConversationActive) return;
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+    handleLiveSpeechInput(audioBlob);
+  };
+
+  mediaRecorder.start();
+  isRecording = true;
+  updateLiveStatus('listening');
+  startSilenceDetection(micStream);
+}
+
+function stopCurrentRecording() {
   if (silenceTimer) {
     clearTimeout(silenceTimer);
     silenceTimer = null;
@@ -1035,7 +1100,7 @@ function startSilenceDetection(stream: MediaStream) {
   const SILENCE_DURATION = 1500; // 1.5 seconds
 
   function checkSilence() {
-    if (!isRecording) return;
+    if (!isRecording || !liveConversationActive) return;
 
     analyser.getByteFrequencyData(dataArray);
     const average = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
@@ -1043,7 +1108,7 @@ function startSilenceDetection(stream: MediaStream) {
     if (average < SILENCE_THRESHOLD) {
       if (!silenceStart) silenceStart = Date.now();
       else if (Date.now() - silenceStart > SILENCE_DURATION) {
-        stopRecording();
+        stopCurrentRecording();
         return;
       }
     } else {
@@ -1053,15 +1118,16 @@ function startSilenceDetection(stream: MediaStream) {
     silenceTimer = window.setTimeout(checkSilence, 100);
   }
 
-  // Wait a bit before starting silence detection to avoid instant stop
+  // Wait before starting silence detection to avoid instant stop
   silenceTimer = window.setTimeout(checkSilence, 1000);
 }
 
-async function handleSpeechInput(audioBlob: Blob) {
-  updateMicButtonState('processing');
+async function handleLiveSpeechInput(audioBlob: Blob) {
+  if (!liveConversationActive) return;
+
+  updateLiveStatus('processing');
 
   try {
-    // Send audio to STT endpoint
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.webm');
 
@@ -1074,14 +1140,14 @@ async function handleSpeechInput(audioBlob: Blob) {
 
     if (sttData.error) {
       addMessage('Systeem', `Spraakherkenning fout: ${sttData.error}`, 'system');
-      updateMicButtonState('idle');
+      if (liveConversationActive) startListeningCycle();
       return;
     }
 
     const transcript = sttData.transcript?.trim();
     if (!transcript) {
-      addMessage('Systeem', 'Geen spraak herkend. Probeer opnieuw.', 'system');
-      updateMicButtonState('idle');
+      // No speech detected — just resume listening
+      if (liveConversationActive) startListeningCycle();
       return;
     }
 
@@ -1095,15 +1161,19 @@ async function handleSpeechInput(audioBlob: Blob) {
     // Generate response
     const responseText = await generateResponseAndReturn();
 
-    // Speak the response
-    if (responseText && speechMode) {
+    // Speak the response, then resume listening
+    if (responseText && liveConversationActive) {
+      updateLiveStatus('speaking');
       await speakResponse(responseText);
     }
   } catch (error) {
     addMessage('Systeem', 'Fout bij spraakverwerking.', 'system');
   }
 
-  updateMicButtonState('idle');
+  // Resume listening for next turn
+  if (liveConversationActive) {
+    startListeningCycle();
+  }
 }
 
 async function speakResponse(text: string) {
