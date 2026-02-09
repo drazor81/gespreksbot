@@ -200,6 +200,20 @@ function initUI() {
       <button id="reset-btn">Reset</button>
     </header>
     <div id="setup-screen" class="scenario-selector">
+      <div class="welcome-card" id="welcome-card">
+        <div class="welcome-header" id="welcome-toggle">
+          <h3>Welkom bij de Gespreksbot Zorg</h3>
+          <button class="welcome-collapse-btn" aria-label="Inklappen">&#9650;</button>
+        </div>
+        <div class="welcome-body" id="welcome-body">
+          <p>Oefen gesprekstechnieken met een virtuele cliënt of collega. Zo werkt het:</p>
+          <ol>
+            <li><strong>Stel je gesprek in</strong> — Kies een setting, scenario, leerdoel en niveau hieronder.</li>
+            <li><strong>Voer het gesprek</strong> — Typ of spreek je antwoorden. Gebruik de knoppen voor tips en theorie.</li>
+            <li><strong>Vraag feedback</strong> — Klik op 'Feedback' om een analyse van je gesprek te krijgen.</li>
+          </ol>
+        </div>
+      </div>
       <div class="settings-panel">
         <h3>Instellingen</h3>
         <div class="setting-group">
@@ -426,6 +440,16 @@ function initUI() {
   const checkboxGroup = document.querySelector('.checkbox-group');
   checkboxGroup?.addEventListener('change', updateStartButtonState);
   updateStartButtonState(); // Initial state
+
+  document.querySelector('#welcome-toggle')?.addEventListener('click', () => {
+    const body = document.querySelector('#welcome-body') as HTMLDivElement;
+    const btn = document.querySelector('.welcome-collapse-btn') as HTMLButtonElement;
+    if (body && btn) {
+      const isCollapsed = body.style.display === 'none';
+      body.style.display = isCollapsed ? 'block' : 'none';
+      btn.innerHTML = isCollapsed ? '&#9650;' : '&#9660;';
+    }
+  });
 }
 
 function updateStartButtonState() {

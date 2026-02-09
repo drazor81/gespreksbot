@@ -495,6 +495,19 @@ header button:hover {
 .leerdoel-naam { font-weight: 500; }
 .leerdoel-uitleg { font-size: 0.6875rem; font-weight: 400; color: var(--text-muted); line-height: 1.3; }
 
+/* Welcome Card */
+.welcome-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; box-shadow: var(--shadow-sm); overflow: hidden; }
+.welcome-header { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1.25rem; cursor: pointer; background: linear-gradient(135deg, rgba(59,130,182,0.08) 0%, rgba(0,183,195,0.08) 100%); border-bottom: 1px solid var(--border-light); }
+.welcome-header h3 { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; font-size: 1rem; font-weight: 600; color: var(--brand); margin: 0; }
+.welcome-header h3::before { content: ''; }
+.welcome-collapse-btn { background: none; border: none; color: var(--text-muted); font-size: 0.75rem; cursor: pointer; padding: 0.25rem; }
+.welcome-body { padding: 1rem 1.25rem; }
+.welcome-body p { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 0.75rem; line-height: 1.5; }
+.welcome-body ol { list-style: none; counter-reset: steps; padding: 0; }
+.welcome-body ol li { counter-increment: steps; font-size: 0.8125rem; color: var(--text-secondary); padding: 0.5rem 0 0.5rem 2rem; position: relative; line-height: 1.5; }
+.welcome-body ol li::before { content: counter(steps); position: absolute; left: 0; top: 0.5rem; width: 1.5rem; height: 1.5rem; background: var(--brand); color: var(--text-white); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; }
+.welcome-body ol li strong { color: var(--text-primary); }
+
 /* Start Button - Primary Orange */
 #start-btn {
   width: 100%;
