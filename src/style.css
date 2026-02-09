@@ -619,15 +619,15 @@ header button:hover {
 }
 
 .leerdoel-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
 }
 
 .leerdoel-chip {
   position: relative;
-  min-height: 2.125rem;
-  padding: 0.5rem 0.625rem;
+  min-height: 3.5rem;
+  padding: 0.75rem 1rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -635,9 +635,10 @@ header button:hover {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
-  transition: all 0.15s;
-  min-width: 140px;
+  justify-content: center;
+  gap: 0.25rem;
+  transition: all 0.2s ease;
+  height: 100%;
 }
 
 .leerdoel-chip input[type="checkbox"] {
@@ -651,31 +652,40 @@ header button:hover {
 }
 
 .leerdoel-chip-name {
-  font-size: 0.75rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: inherit;
+  color: var(--text-primary);
 }
 
 .leerdoel-chip-desc {
-  font-size: 0.6875rem;
-  line-height: 1.25;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.4;
   color: var(--text-muted);
 }
 
 .leerdoel-chip:hover {
-  border-color: var(--brand);
-  color: var(--brand);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .leerdoel-chip:has(input:checked) {
-  border-color: var(--brand);
-  background: rgba(59, 130, 182, 0.08);
-  color: var(--text-primary);
+  border-color: var(--primary);
+  background: #FFF7ED; /* Orange-50 equivalent */
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.leerdoel-chip:has(input:checked) .leerdoel-chip-name {
+  color: var(--primary-hover);
 }
 
 .leerdoel-chip:has(input:disabled):not(:has(input:checked)) {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .setup-theory-link { display: block; width: 100%; background: none; border: 1px dashed var(--border); color: var(--brand); font-size: 0.8125rem; font-weight: 500; padding: 0.5rem; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; margin-top: 0.5rem; font-family: inherit; text-align: center; }

@@ -188,6 +188,20 @@ De Gespreksbot Zorg is vakinhoudelijk sterk (uitgebreide kennisbank, rubrics, ze
 | 16 | iOS scroll-optimalisatie (overscroll-behavior) | UX |
 | 17 | Typografie-hierarchie vereenvoudigen (3-4 stappen) | UX |
 
+### UI Polish (Direct Request)
+
+#### 18. Consistente en Nette UI (Leerdoelen + Algemeen)
+**Bron:** User Feedback
+**Probleem:**
+- Leerdoel-vakken zijn ongelijk van hoogte/breedte ("rommeltje").
+- Hover-randen zijn niet oranje (zijn nu blauw).
+- Lettertypes voelen inconsistent.
+**Voorstel:**
+- **Layout:** Gebruik `display: grid` voor `.leerdoel-chips` zodat alle kaarten in een rij gelijke hoogte en breedte hebben.
+- **Styling:** Update hover- en checked-states van Leerdoelen naar `var(--primary)` (Oranje) i.p.v. `--brand`.
+- **Typografie:** Standardiseer font-gebruik. Headers `Plus Jakarta Sans`, Body `Inter`. Consistente font-weights/sizes.
+- **Witruimte:** Consistente padding en margins in de kaarten.
+
 ---
 
 ## Niet in scope (bewust niet opgenomen)
