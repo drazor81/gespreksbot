@@ -25,6 +25,24 @@ interface Scenario {
   recommendedLeerdoelen?: string[];
 }
 
+interface ScoreStats {
+  goed: number;
+  voldoende: number;
+  onvoldoende: number;
+}
+
+interface DashboardSession {
+  id: string;
+  dateIso: string;
+  studentName: string;
+  setting: string;
+  scenario: string;
+  leerdoelen: string[];
+  niveau: string;
+  turns: number;
+  scores: ScoreStats | null;
+}
+
 const SYSTEM_PROMPT_MBO = SYSTEM_PROMPT_MBO_V2;
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -47,6 +65,10 @@ let isWaitingForResponse = false;
 let selfAssessment: Record<string, string> = {};
 let conversationStartedAt: Date | null = null;
 let conversationClosed = false;
+let latestFeedbackScores: ScoreStats | null = null;
+let dashboardSavedForConversation = false;
+
+const DASHBOARD_STORAGE_KEY = 'gespreksbot-docent-dashboard-v1';
 
 const RECOMMENDED_MIN_TURNS = 6;
 const TARGET_TURNS = 8;
@@ -250,6 +272,156 @@ function clearInlineError(id: string) {
   setInlineError(id, '');
 }
 
+function showToast(message: string, variant: 'info' | 'success' | 'error' = 'info') {
+  const container = document.querySelector('#toast-container') as HTMLDivElement | null;
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${variant}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('toast-leave');
+    setTimeout(() => toast.remove(), 240);
+  }, 2200);
+}
+
+function addTypingIndicator(sender: string, type: 'patient' | 'system' | 'meta' = 'patient') {
+  const container = document.querySelector('#chat-container') as HTMLDivElement | null;
+  if (!container) return;
+
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `message ${type} typing-message`;
+  msgDiv.setAttribute('data-typing', 'true');
+
+  const strong = document.createElement('strong');
+  strong.textContent = sender;
+  const content = document.createElement('div');
+  content.className = 'message-content';
+  const dots = document.createElement('span');
+  dots.className = 'typing-dots';
+  dots.innerHTML = '<span></span><span></span><span></span>';
+  content.appendChild(dots);
+
+  msgDiv.appendChild(strong);
+  msgDiv.appendChild(content);
+  container.appendChild(msgDiv);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeTypingIndicators() {
+  document.querySelectorAll('[data-typing="true"]').forEach(el => el.remove());
+}
+
+function getFeedbackScores(text: string): ScoreStats | null {
+  const scoresMatch = text.match(/<!--SCORES\n([\s\S]*?)SCORES-->/);
+  if (!scoresMatch) return null;
+
+  const stats: ScoreStats = { goed: 0, voldoende: 0, onvoldoende: 0 };
+  const lines = scoresMatch[1].trim().split('\n').filter(l => l.includes('|'));
+  const dataLines = lines.filter(l => !l.startsWith('leerdoel|'));
+
+  for (const line of dataLines) {
+    const parts = line.split('|').map(s => s.trim());
+    if (parts.length < 3) continue;
+    const score = parts[2].toLowerCase();
+    if (score === 'goed') stats.goed += 1;
+    if (score === 'voldoende') stats.voldoende += 1;
+    if (score === 'onvoldoende') stats.onvoldoende += 1;
+  }
+  return stats.goed + stats.voldoende + stats.onvoldoende > 0 ? stats : null;
+}
+
+function loadDashboardSessions(): DashboardSession[] {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as DashboardSession[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDashboardSessions(sessions: DashboardSession[]) {
+  localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(sessions.slice(0, 120)));
+}
+
+function saveCurrentSessionToDashboard() {
+  if (dashboardSavedForConversation) return;
+  if (!conversationStartedAt) return;
+  const session: DashboardSession = {
+    id: `${Date.now()}`,
+    dateIso: new Date().toISOString(),
+    studentName: (document.querySelector('#student-name-input') as HTMLInputElement | null)?.value.trim() || 'Onbekend',
+    setting: selectedSettings.setting,
+    scenario: getScenarioLabelForUi(),
+    leerdoelen: [...selectedSettings.leerdoelen],
+    niveau: selectedSettings.moeilijkheid,
+    turns: getStudentTurnCount(),
+    scores: latestFeedbackScores
+  };
+
+  const sessions = loadDashboardSessions();
+  sessions.unshift(session);
+  saveDashboardSessions(sessions);
+  dashboardSavedForConversation = true;
+}
+
+function renderDashboard() {
+  const content = document.querySelector('#dashboard-content') as HTMLDivElement | null;
+  if (!content) return;
+
+  const sessions = loadDashboardSessions();
+  if (sessions.length === 0) {
+    content.innerHTML = '<p class="dashboard-empty">Nog geen sessies opgeslagen.</p>';
+    return;
+  }
+
+  const uniqueStudents = new Set(sessions.map(s => s.studentName).filter(Boolean)).size;
+  const avgTurns = Math.round(sessions.reduce((sum, s) => sum + s.turns, 0) / sessions.length);
+  const scoreTotals = sessions.reduce((acc, s) => {
+    if (s.scores) {
+      acc.goed += s.scores.goed;
+      acc.voldoende += s.scores.voldoende;
+      acc.onvoldoende += s.scores.onvoldoende;
+    }
+    return acc;
+  }, { goed: 0, voldoende: 0, onvoldoende: 0 });
+
+  const rows = sessions.slice(0, 20).map(s => {
+    const date = new Date(s.dateIso).toLocaleDateString('nl-NL');
+    const scoreSummary = s.scores
+      ? `G:${s.scores.goed} V:${s.scores.voldoende} O:${s.scores.onvoldoende}`
+      : '-';
+    return `<tr>
+      <td>${escapeHtml(date)}</td>
+      <td>${escapeHtml(s.studentName)}</td>
+      <td>${escapeHtml(s.scenario)}</td>
+      <td>${escapeHtml(String(s.turns))}</td>
+      <td>${escapeHtml(scoreSummary)}</td>
+    </tr>`;
+  }).join('');
+
+  content.innerHTML = `
+    <div class="dashboard-stats">
+      <div><strong>Sessies:</strong> ${sessions.length}</div>
+      <div><strong>Studenten:</strong> ${uniqueStudents}</div>
+      <div><strong>Gem. beurten:</strong> ${avgTurns}</div>
+      <div><strong>Scores:</strong> G ${scoreTotals.goed} / V ${scoreTotals.voldoende} / O ${scoreTotals.onvoldoende}</div>
+    </div>
+    <div class="dashboard-table-wrap">
+      <table class="dashboard-table">
+        <thead>
+          <tr><th>Datum</th><th>Student</th><th>Scenario</th><th>Beurten</th><th>Scores</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 function buildLeerdoelSelectionHtml() {
   return LEERDOEL_GROUPS.map(group => `
     <div class="leerdoel-group">
@@ -270,6 +442,14 @@ function buildLeerdoelSelectionHtml() {
 function setAppMode(mode: 'setup' | 'chat' | 'feedback') {
   app.classList.remove('setup-mode', 'chat-mode', 'feedback-mode');
   app.classList.add(`${mode}-mode`);
+}
+
+function animateScreenEntry(selector: string) {
+  const element = document.querySelector(selector) as HTMLElement | null;
+  if (!element) return;
+  element.classList.remove('screen-enter');
+  void element.offsetWidth;
+  element.classList.add('screen-enter');
 }
 
 function setFeedbackTab(tab: 'gesprek' | 'feedback') {
@@ -608,6 +788,7 @@ function initUI() {
           <div class="feedback-panel-header">
             <h3>Feedback</h3>
             <div class="feedback-panel-actions">
+              <button type="button" id="dashboard-btn" class="copy-feedback-btn" title="Open docentdashboard">Docentdashboard</button>
               <button type="button" id="copy-feedback-btn" class="copy-feedback-btn" title="Kopieer feedback" style="display: none;">Kopieer</button>
               <button type="button" id="export-feedback-btn" class="copy-feedback-btn" title="Exporteer feedback als PDF">Exporteer als PDF</button>
             </div>
@@ -618,6 +799,15 @@ function initUI() {
         </div>
       </div>
       <button type="button" id="new-conversation-btn">Nieuw gesprek</button>
+    </div>
+    <div id="dashboard-modal" class="modal" style="display: none;">
+      <div class="modal-content dashboard-modal-content">
+        <div class="modal-header">
+          <h2>Docentdashboard</h2>
+          <button type="button" id="close-dashboard-btn" class="close-btn" aria-label="Sluit dashboard">&times;</button>
+        </div>
+        <div id="dashboard-content" class="modal-body"></div>
+      </div>
     </div>
     <div id="confirm-modal" class="modal" style="display: none;">
       <div class="modal-content confirm-modal-content" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
@@ -633,6 +823,7 @@ function initUI() {
         </div>
       </div>
     </div>
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
   `
 
   document.querySelector('#start-btn')?.addEventListener('click', () => {
@@ -737,6 +928,23 @@ function initUI() {
 
   document.querySelector('#copy-feedback-btn')?.addEventListener('click', copyFeedback);
   document.querySelector('#export-feedback-btn')?.addEventListener('click', printFeedback);
+  document.querySelector('#dashboard-btn')?.addEventListener('click', () => {
+    renderDashboard();
+    const modal = document.querySelector('#dashboard-modal') as HTMLDivElement | null;
+    if (modal) modal.style.display = 'flex';
+  });
+
+  document.querySelector('#close-dashboard-btn')?.addEventListener('click', () => {
+    const modal = document.querySelector('#dashboard-modal') as HTMLDivElement | null;
+    if (modal) modal.style.display = 'none';
+  });
+
+  document.querySelector('#dashboard-modal')?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).id === 'dashboard-modal') {
+      const modal = document.querySelector('#dashboard-modal') as HTMLDivElement | null;
+      if (modal) modal.style.display = 'none';
+    }
+  });
 
   document.querySelector('#feedback-tab-gesprek')?.addEventListener('click', () => {
     setFeedbackTab('gesprek');
@@ -892,11 +1100,13 @@ async function startScenarioFromSettings() {
   selfAssessment = {};
   conversationStartedAt = new Date();
   conversationClosed = false;
+  latestFeedbackScores = null;
+  dashboardSavedForConversation = false;
   prepareChat();
   const scenarioLabel = selectedSettings.scenarioType === 'Eigen scenario' ? selectedSettings.customScenario.substring(0, 50) + '...' : selectedSettings.scenarioType;
   const rolLabel = isCollegaMode ? 'Collega' : 'Cliënt';
   addMessage('Systeem', `Gesprek gestart in ${selectedSettings.setting}. Scenario: ${scenarioLabel}`, 'system');
-  addMessage(rolLabel, '*...*', 'patient'); // Typing indicator
+  addTypingIndicator(rolLabel, 'patient');
 
   // Request dynamic opening from Claude
   updateChatSessionMeta();
@@ -1031,10 +1241,7 @@ Voorbeeld output:
 
     const data = await response.json();
 
-    // Remove typing indicator
-    const container = document.querySelector('#chat-container')!;
-    const lastMessage = container.lastElementChild;
-    if (lastMessage) lastMessage.remove();
+    removeTypingIndicators();
 
     if (data.error) {
       addMessage('Systeem', `Fout: ${data.error}`, 'system');
@@ -1049,15 +1256,15 @@ Voorbeeld output:
         const cleanResponse = data.response.replace(/\[NAAM:[^\]]+\]\s*/i, '').trim();
         conversationHistory.push({ role: 'assistant', content: cleanResponse });
         addMessage(extractedName, cleanResponse, 'patient');
+        updateChatSessionMeta();
       } else {
         conversationHistory.push({ role: 'assistant', content: data.response });
-        addMessage(isCollegaMode ? 'Collega' : 'Cliënt', data.response, 'patient');
+        addMessage(isCollegaMode ? 'Collega' : 'Client', data.response, 'patient');
+        updateChatSessionMeta();
       }
     }
   } catch (error) {
-    const container = document.querySelector('#chat-container')!;
-    const lastMessage = container.lastElementChild;
-    if (lastMessage) lastMessage.remove();
+    removeTypingIndicators();
     addMessage('Systeem', 'Kan geen verbinding maken met de AI-server.', 'system');
   }
 }
@@ -1115,6 +1322,7 @@ function startScenario(id: string) {
     scenarioPrefillMessage.textContent = `Startpunt geladen: ${preset.name}. Kies eventueel andere leerdoelen of niveau en klik daarna op 'Start maatwerk gesprek'.`;
   }
 
+  showToast(`Startpunt geladen: ${preset.name}`, 'info');
   clearInlineError('setup-error');
   clearInlineError('setup-theory-error');
   document.querySelector('.settings-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1136,6 +1344,9 @@ function prepareChat() {
   document.querySelector<HTMLDivElement>('#chat-session-meta')!.style.display = 'flex';
   document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'flex';
   document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'flex';
+  animateScreenEntry('#chat-session-meta');
+  animateScreenEntry('#chat-container');
+  animateScreenEntry('#input-area');
   setChecklistPanelVisibility(false);
   updateChatSessionMeta();
 }
@@ -1258,9 +1469,12 @@ Geef nu je feedback volgens de voorgeschreven structuur.`;
     if (data.error) {
       feedbackContent.innerHTML = summaryHtml + `<p class="feedback-error">Kon geen feedback genereren: ${data.error}</p>`;
     } else {
+      latestFeedbackScores = getFeedbackScores(data.response);
       feedbackContent.innerHTML = summaryHtml + formatFeedback(data.response);
       const copyBtn = document.querySelector('#copy-feedback-btn') as HTMLButtonElement;
       if (copyBtn) copyBtn.style.display = 'inline-flex';
+      saveCurrentSessionToDashboard();
+      showToast('Feedback is gereed en opgeslagen in het dashboard.', 'success');
     }
   } catch (error) {
     feedbackContent.innerHTML = summaryHtml + '<p class="feedback-error">Kon geen verbinding maken met de server.</p>';
@@ -1286,6 +1500,7 @@ async function showFeedback() {
   updateChatSessionMeta();
   const feedbackScreen = document.querySelector<HTMLDivElement>('#feedback-screen')!;
   feedbackScreen.style.display = 'flex';
+  animateScreenEntry('#feedback-screen');
   setFeedbackTab('feedback');
   renderFeedbackExportSummary();
 
@@ -1389,9 +1604,10 @@ function copyFeedback() {
     const btn = document.querySelector('#copy-feedback-btn') as HTMLButtonElement;
     if (btn) {
       const orig = btn.textContent;
-      btn.textContent = '✅ Gekopieerd!';
+      btn.textContent = 'Gekopieerd';
       setTimeout(() => { btn.textContent = orig; }, 2000);
     }
+    showToast('Feedback gekopieerd naar klembord.', 'success');
   });
 }
 
@@ -1416,7 +1632,7 @@ async function endConversation() {
   addMessage('Jij (Student)', closingMessage, 'student');
   conversationHistory.push({ role: 'user', content: closingMessage });
   updateChatSessionMeta();
-  addMessage(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'CliÃ«nt'), '*denkt na...*', 'patient');
+  addTypingIndicator(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Client'), 'patient');
 
   const result = await generateResponseAndReturn();
   if (result) {
@@ -1428,6 +1644,7 @@ async function endConversation() {
     }
     if (submitBtn) submitBtn.disabled = true;
     addMessage('Systeem', 'Gesprek is afgerond. Je kunt nu feedback bekijken.', 'system');
+    showToast('Gesprek afgerond. Feedback is nu beschikbaar.', 'success');
   }
 
   isWaitingForResponse = false;
@@ -1453,7 +1670,7 @@ function handleSendMessage() {
   input.value = '';
   conversationHistory.push({ role: 'user', content: text });
   updateChatSessionMeta();
-  addMessage(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Cliënt'), '*denkt na...*', 'patient');
+  addTypingIndicator(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Client'), 'patient');
 
   generateResponse().finally(() => {
     isWaitingForResponse = false;
@@ -1518,7 +1735,7 @@ async function getHint() {
   }
 
   // Add temp loading message
-  addMessage('Systeem', 'Coach denkt na over een tip...', 'system');
+  addTypingIndicator('Coach', 'meta');
 
   // Format conversation as a readable transcript (not as chat messages)
   const transcript = conversationHistory.map(msg => {
@@ -1559,12 +1776,7 @@ Analyseer het gesprek op basis van je kennis over de gesprekstechnieken hierbove
 
     const data = await response.json();
 
-    // Remove loading message
-    const container = document.querySelector('#chat-container')!;
-    const lastMessage = container.lastElementChild;
-    if (lastMessage && lastMessage.textContent?.includes('Coach denkt na')) {
-      lastMessage.remove();
-    }
+    removeTypingIndicators();
 
     if (data.error) {
       addMessage('Systeem', 'Kon geen tip genereren.', 'system');
@@ -1572,11 +1784,7 @@ Analyseer het gesprek op basis van je kennis over de gesprekstechnieken hierbove
       addMessage('Coach', `💡 ${data.response}`, 'meta');
     }
   } catch (error) {
-    const container = document.querySelector('#chat-container')!;
-    const lastMessage = container.lastElementChild;
-    if (lastMessage && lastMessage.textContent?.includes('Coach denkt na')) {
-      lastMessage.remove();
-    }
+    removeTypingIndicators();
     addMessage('Systeem', 'Kon geen verbinding maken met de coach. Probeer het opnieuw.', 'system');
   } finally {
     if (hintBtn) hintBtn.disabled = false;
@@ -1618,12 +1826,7 @@ async function generateResponseAndReturn(): Promise<string | null> {
 
     const data = await response.json();
 
-    // Remove typing indicator
-    const container = document.querySelector('#chat-container')!;
-    const lastMessage = container.lastElementChild;
-    if (lastMessage?.textContent?.includes('denkt na')) {
-      lastMessage.remove();
-    }
+    removeTypingIndicators();
 
     if (data.error) {
       addMessage('Systeem', `Fout: ${data.error}`, 'system');
@@ -1635,12 +1838,7 @@ async function generateResponseAndReturn(): Promise<string | null> {
       return data.response;
     }
   } catch (error) {
-    // Remove typing indicator
-    const container = document.querySelector('#chat-container')!;
-    const lastMessage = container.lastElementChild;
-    if (lastMessage?.textContent?.includes('denkt na')) {
-      lastMessage.remove();
-    }
+    removeTypingIndicators();
     addMessage('Systeem', 'Er is een probleem met de verbinding. Probeer het later opnieuw of neem contact op met je docent.', 'system');
     return null;
   }
@@ -1833,7 +2031,7 @@ async function handleLiveSpeechInput(audioBlob: Blob) {
     updateChatSessionMeta();
 
     // Show typing indicator
-    addMessage(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Cliënt'), '*denkt na...*', 'patient');
+    addTypingIndicator(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Client'), 'patient');
 
     // Generate response
     const responseText = await generateResponseAndReturn();
@@ -1887,5 +2085,8 @@ async function speakResponse(text: string) {
 }
 
 initUI()
+
+
+
 
 
