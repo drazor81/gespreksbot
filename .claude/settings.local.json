@@ -19,7 +19,9 @@
       "Bash(index)",
       "Bash(config)",
       "Bash(vite \")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(cd:*)",
+      "Bash(npx kill-port:*)"
     ]
   }
 }
