@@ -22,7 +22,7 @@ interface Scenario {
 
 const SYSTEM_PROMPT_MBO = SYSTEM_PROMPT_MBO_V2;
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/api\/chat\/?$/, '') || import.meta.env.VITE_API_BASE || 'http://localhost:3001';
 const API_URL = `${API_BASE}/api/chat`;
 let conversationHistory: { role: 'user' | 'assistant'; content: string }[] = [];
 
