@@ -67,6 +67,28 @@ app.post('/api/chat', async (req, res) => {
             return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not configured.' });
         }
 
+        // Input validatie
+        if (!systemPrompt || typeof systemPrompt !== 'string') {
+            return res.status(400).json({ error: 'Ongeldig verzoek: systemPrompt ontbreekt.' });
+        }
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({ error: 'Ongeldig verzoek: messages ontbreekt.' });
+        }
+        if (messages.length > 100) {
+            return res.status(400).json({ error: 'Ongeldig verzoek: te veel berichten.' });
+        }
+        for (const msg of messages) {
+            if (!msg.role || !['user', 'assistant'].includes(msg.role)) {
+                return res.status(400).json({ error: 'Ongeldig verzoek: ongeldige message role.' });
+            }
+            if (typeof msg.content !== 'string' || msg.content.length > 10000) {
+                return res.status(400).json({ error: 'Ongeldig verzoek: bericht te lang of ongeldig.' });
+            }
+        }
+        if (systemPrompt.length > 50000) {
+            return res.status(400).json({ error: 'Ongeldig verzoek: systemPrompt te lang.' });
+        }
+
         const response = await anthropic.messages.create({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 1024,
