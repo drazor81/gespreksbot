@@ -349,7 +349,12 @@ function initUI() {
           <div id="feedback-gesprek-content"></div>
         </div>
         <div class="feedback-panel">
-          <h3>Feedback</h3>
+          <div class="feedback-panel-header">
+            <h3>Feedback</h3>
+            <button id="copy-feedback-btn" class="copy-feedback-btn" title="Kopieer feedback" style="display: none;">
+              📄 Kopieer
+            </button>
+          </div>
           <div id="feedback-content">
             <p class="feedback-loading">Feedback wordt gegenereerd...</p>
           </div>
@@ -430,6 +435,8 @@ function initUI() {
   document.querySelector('#feedback-btn')?.addEventListener('click', () => {
     showFeedback();
   });
+
+  document.querySelector('#copy-feedback-btn')?.addEventListener('click', copyFeedback);
 
   document.querySelector('#new-conversation-btn')?.addEventListener('click', () => {
     location.reload();
@@ -842,6 +849,8 @@ Geef nu je feedback volgens de voorgeschreven structuur.`;
       feedbackContent.innerHTML = `<p class="feedback-error">Kon geen feedback genereren: ${data.error}</p>`;
     } else {
       feedbackContent.innerHTML = formatFeedback(data.response);
+      const copyBtn = document.querySelector('#copy-feedback-btn') as HTMLButtonElement;
+      if (copyBtn) copyBtn.style.display = 'inline-flex';
     }
   } catch (error) {
     feedbackContent.innerHTML = '<p class="feedback-error">Kon geen verbinding maken met de server.</p>';
@@ -857,6 +866,19 @@ function formatFeedback(text: string): string {
     .replace(/\n- /g, '<br>• ')
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>');
+}
+
+function copyFeedback() {
+  const el = document.querySelector('#feedback-content');
+  if (!el) return;
+  navigator.clipboard.writeText((el as HTMLElement).innerText).then(() => {
+    const btn = document.querySelector('#copy-feedback-btn') as HTMLButtonElement;
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✅ Gekopieerd!';
+      setTimeout(() => { btn.textContent = orig; }, 2000);
+    }
+  });
 }
 
 function handleSendMessage() {
