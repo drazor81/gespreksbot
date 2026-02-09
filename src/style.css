@@ -639,6 +639,16 @@ header button:hover {
   .settings-panel {
     padding: 1rem;
   }
+
+  .feedback-container {
+    flex-direction: column;
+  }
+
+  .feedback-gesprek {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 35vh;
+  }
 }
 
 /* Scrollbar Styling */
@@ -901,17 +911,6 @@ header button:hover {
   box-shadow: var(--shadow-lg);
 }
 
-
-/* Stack feedback vertically in narrow container */
-.feedback-container {
-  flex-direction: column;
-}
-
-.feedback-gesprek {
-  border-right: none;
-  border-bottom: 1px solid var(--border);
-  max-height: 35vh;
-}
 
 /* Speech Toggle */
 .speech-toggle {
