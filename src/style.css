@@ -326,6 +326,8 @@ header button:hover {
   box-shadow: var(--shadow);
 }
 
+#input-form button:disabled { background: var(--border); cursor: not-allowed; transform: none; box-shadow: none; }
+
 /* Setup Screen */
 .scenario-selector {
   padding: 1.5rem;

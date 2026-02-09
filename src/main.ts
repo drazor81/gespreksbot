@@ -38,6 +38,7 @@ let micStream: MediaStream | null = null;
 
 const scenarios: Scenario[] = personasData;
 let currentScenario: Scenario | null = null;
+let isWaitingForResponse = false;
 
 const SETTINGS_OPTIONS = {
   setting: ["Verpleeghuis", "Thuiszorg", "Ziekenhuis", "GGZ", "Gehandicaptenzorg", "Huisartsenpraktijk"],
@@ -780,20 +781,27 @@ function formatFeedback(text: string): string {
 }
 
 function handleSendMessage() {
+  if (isWaitingForResponse) return;
   const input = document.querySelector<HTMLInputElement>('#user-input')!;
   const text = input.value.trim();
   if (!text) return;
 
+  isWaitingForResponse = true;
+  const submitBtn = document.querySelector<HTMLButtonElement>('#input-form button[type="submit"]')!;
+  input.disabled = true;
+  submitBtn.disabled = true;
+
   addMessage('Jij (Student)', text, 'student');
   input.value = '';
-
-  // Add to conversation history
   conversationHistory.push({ role: 'user', content: text });
-
-  // Show typing indicator
   addMessage(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Cliënt'), '*denkt na...*', 'patient');
 
-  generateResponse();
+  generateResponse().finally(() => {
+    isWaitingForResponse = false;
+    input.disabled = false;
+    submitBtn.disabled = false;
+    input.focus();
+  });
 }
 
 function addMessage(sender: string, text: string, type: 'student' | 'patient' | 'system' | 'meta') {
