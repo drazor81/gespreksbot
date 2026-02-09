@@ -10,7 +10,7 @@
   /* Text Colors */
   --text-primary: #1E3A5F;
   --text-secondary: #5A7184;
-  --text-muted: #94A3B8;
+  --text-muted: #6B7B8D;
   --text-white: #FFFFFF;
 
   /* Background Colors */
@@ -38,6 +38,11 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }
 
 body {
@@ -109,6 +114,39 @@ header button:hover {
   flex-direction: column;
   gap: 0.75rem;
   background: var(--bg-chat);
+}
+
+.chat-session-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(8px);
+}
+
+.chat-context-bar {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.chat-context-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1875rem 0.625rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.chat-turn-status {
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 /* Messages */
@@ -250,12 +288,12 @@ header button:hover {
   background: var(--bg-subtle);
   color: var(--text-secondary);
   border: 1px solid var(--border);
-  padding: 0.4rem 0.5rem;
+  padding: 0.625rem 0.75rem;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s;
   font-weight: 500;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-family: inherit;
 }
 
@@ -327,6 +365,27 @@ header button:hover {
 }
 
 #input-form button:disabled { background: var(--border); cursor: not-allowed; transform: none; box-shadow: none; }
+
+.feedback-action-btn {
+  width: 100%;
+  background: #0F766E;
+  color: var(--text-white);
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.feedback-action-btn:hover {
+  background: #0D9488;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
 
 /* Setup Screen */
 .scenario-selector {
@@ -444,8 +503,8 @@ header button:hover {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   background: #FFFFFF;
   border: 2px solid var(--border);
   border-radius: 4px;
@@ -466,7 +525,7 @@ header button:hover {
   left: 50%;
   transform: translate(-50%, -50%);
   color: white;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: bold;
 }
 
@@ -475,7 +534,7 @@ header button:hover {
 }
 
 .checkbox-group input[type="checkbox"]:disabled {
-  opacity: 0.35;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -497,6 +556,7 @@ header button:hover {
 
 .setup-theory-link { display: block; width: 100%; background: none; border: 1px dashed var(--border); color: var(--brand); font-size: 0.8125rem; font-weight: 500; padding: 0.5rem; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; margin-top: 0.5rem; font-family: inherit; text-align: center; }
 .setup-theory-link:hover { background: rgba(59,130,182,0.06); border-color: var(--brand); }
+.inline-error { min-height: 1rem; margin-top: 0.375rem; font-size: 0.75rem; color: #B91C1C; }
 
 /* Checklist Panel */
 .checklist-panel { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); max-height: 200px; overflow-y: auto; animation: fadeIn 0.2s ease-out; }
@@ -644,6 +704,15 @@ header button:hover {
     flex-direction: column;
   }
 
+  .feedback-export-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .feedback-export-summary {
+    grid-template-columns: 1fr;
+  }
+
   .feedback-gesprek {
     border-right: none;
     border-bottom: 1px solid var(--border);
@@ -774,12 +843,95 @@ header button:hover {
   margin: 1.5rem 0;
 }
 
+.confirm-modal-content {
+  max-width: 420px;
+}
+
+.confirm-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.modal-secondary-btn,
+.modal-primary-btn {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.modal-secondary-btn {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+
+.modal-primary-btn {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-white);
+}
+
+.modal-primary-btn:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
 /* Feedback Screen */
 #feedback-screen {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.feedback-export-controls {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.feedback-export-controls label {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.feedback-export-controls input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-family: inherit;
+}
+
+.feedback-export-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.375rem 1rem;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.feedback-meta-item {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.feedback-meta-item strong {
+  color: var(--text-primary);
 }
 
 .feedback-container {
@@ -844,6 +996,13 @@ header button:hover {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   margin: 0;
+}
+
+.feedback-panel-actions {
+  display: inline-flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .copy-feedback-btn {
@@ -1268,4 +1427,65 @@ header button:hover {
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-muted);
+}
+
+@media print {
+  body {
+    background: #fff !important;
+    padding: 0;
+    display: block;
+    min-height: auto;
+  }
+
+  #app {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    max-height: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  header,
+  #setup-screen,
+  #input-area,
+  #chat-session-meta,
+  #chat-container,
+  #new-conversation-btn,
+  #theory-modal,
+  #confirm-modal,
+  .feedback-panel-actions,
+  .feedback-export-controls {
+    display: none !important;
+  }
+
+  #feedback-screen {
+    display: flex !important;
+    overflow: visible;
+  }
+
+  .feedback-export-summary {
+    background: #fff;
+    border-top: 1px solid #ccc;
+  }
+
+  .feedback-container,
+  .feedback-gesprek,
+  .feedback-panel,
+  #feedback-gesprek-content,
+  #feedback-content {
+    overflow: visible;
+    max-height: none;
+    height: auto;
+  }
+
+  .feedback-container {
+    display: block;
+  }
+
+  .feedback-gesprek {
+    border-right: none;
+    border-bottom: 1px solid #ccc;
+  }
 }

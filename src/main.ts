@@ -40,6 +40,10 @@ const scenarios: Scenario[] = personasData;
 let currentScenario: Scenario | null = null;
 let isWaitingForResponse = false;
 let selfAssessment: Record<string, string> = {};
+let conversationStartedAt: Date | null = null;
+
+const RECOMMENDED_MIN_TURNS = 6;
+const TARGET_TURNS = 8;
 
 const SETTINGS_OPTIONS = {
   setting: ["Verpleeghuis", "Thuiszorg", "Ziekenhuis", "GGZ", "Gehandicaptenzorg", "Huisartsenpraktijk"],
@@ -214,24 +218,195 @@ function populateChecklist() {
   body.innerHTML = html;
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function setInlineError(id: string, message: string) {
+  const el = document.querySelector(`#${id}`) as HTMLElement | null;
+  if (!el) return;
+  el.textContent = message;
+}
+
+function clearInlineError(id: string) {
+  setInlineError(id, '');
+}
+
+function toggleWelcomeBody() {
+  const body = document.querySelector('#welcome-body') as HTMLDivElement | null;
+  const btn = document.querySelector('#welcome-toggle') as HTMLButtonElement | null;
+  if (!body || !btn) return;
+
+  const shouldExpand = body.style.display === 'none';
+  body.style.display = shouldExpand ? 'block' : 'none';
+  btn.innerHTML = shouldExpand ? '&#9650;' : '&#9660;';
+  btn.setAttribute('aria-expanded', String(shouldExpand));
+}
+
+function setChecklistPanelVisibility(visible: boolean) {
+  const panel = document.querySelector('#checklist-panel') as HTMLDivElement | null;
+  const checklistBtn = document.querySelector('#checklist-btn') as HTMLButtonElement | null;
+  if (!panel || !checklistBtn) return;
+
+  panel.style.display = visible ? 'block' : 'none';
+  panel.setAttribute('aria-hidden', String(!visible));
+  checklistBtn.setAttribute('aria-expanded', String(visible));
+}
+
+function getScenarioLabelForUi() {
+  if (currentScenario && currentScenario.id !== 'dynamic') {
+    return currentScenario.name;
+  }
+  if (selectedSettings.scenarioType === 'Eigen scenario' && selectedSettings.customScenario.trim()) {
+    return selectedSettings.customScenario.trim();
+  }
+  return selectedSettings.scenarioType;
+}
+
+function getStudentTurnCount() {
+  return conversationHistory.filter(msg => msg.role === 'user').length;
+}
+
+function updateChatSessionMeta() {
+  const meta = document.querySelector('#chat-session-meta') as HTMLDivElement | null;
+  const chatContainer = document.querySelector('#chat-container') as HTMLDivElement | null;
+  const contextBar = document.querySelector('#chat-context-bar') as HTMLDivElement | null;
+  const turnStatus = document.querySelector('#chat-turn-status') as HTMLDivElement | null;
+  if (!meta || !chatContainer || !contextBar || !turnStatus) return;
+
+  const isChatVisible = chatContainer.style.display !== 'none';
+  meta.style.display = isChatVisible ? 'flex' : 'none';
+  if (!isChatVisible) return;
+
+  contextBar.innerHTML = '';
+  const contextItems = [
+    selectedSettings.setting || 'Setting onbekend',
+    selectedSettings.leerdoelen.length > 0 ? selectedSettings.leerdoelen.join(' + ') : 'Geen leerdoelen',
+    selectedSettings.moeilijkheid || 'Niveau onbekend'
+  ];
+  contextItems.forEach(item => {
+    const chip = document.createElement('span');
+    chip.className = 'chat-context-chip';
+    chip.textContent = item;
+    contextBar.appendChild(chip);
+  });
+
+  const turns = getStudentTurnCount();
+  let turnMessage = `Beurt ${turns} van ~${TARGET_TURNS}.`;
+  if (turns < 4) {
+    turnMessage += ' Probeer minimaal 6 beurten.';
+  } else if (turns >= RECOMMENDED_MIN_TURNS) {
+    turnMessage += ' Je kunt nu het gesprek afronden of doorgaan.';
+  }
+  turnStatus.textContent = turnMessage;
+}
+
+function getFormattedDateTime(date: Date) {
+  return date.toLocaleString('nl-NL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function renderFeedbackExportSummary() {
+  const summary = document.querySelector('#feedback-export-summary') as HTMLDivElement | null;
+  if (!summary) return;
+
+  const studentInput = document.querySelector('#student-name-input') as HTMLInputElement | null;
+  const studentName = studentInput?.value.trim() || 'Niet ingevuld';
+  const startedAt = conversationStartedAt ?? new Date();
+  const scenarioLabel = getScenarioLabelForUi();
+  const goals = selectedSettings.leerdoelen.length > 0 ? selectedSettings.leerdoelen.join(', ') : 'Geen leerdoelen';
+
+  summary.innerHTML = `
+    <div class="feedback-meta-item"><strong>Datum:</strong> ${escapeHtml(getFormattedDateTime(startedAt))}</div>
+    <div class="feedback-meta-item"><strong>Student:</strong> ${escapeHtml(studentName)}</div>
+    <div class="feedback-meta-item"><strong>Setting:</strong> ${escapeHtml(selectedSettings.setting)}</div>
+    <div class="feedback-meta-item"><strong>Scenario:</strong> ${escapeHtml(scenarioLabel)}</div>
+    <div class="feedback-meta-item"><strong>Leerdoelen:</strong> ${escapeHtml(goals)}</div>
+    <div class="feedback-meta-item"><strong>Niveau:</strong> ${escapeHtml(selectedSettings.moeilijkheid)}</div>
+  `;
+}
+
+function printFeedback() {
+  renderFeedbackExportSummary();
+  window.print();
+}
+
+function showConfirmDialog(message: string): Promise<boolean> {
+  const modal = document.querySelector('#confirm-modal') as HTMLDivElement | null;
+  const messageEl = document.querySelector('#confirm-message') as HTMLParagraphElement | null;
+  const cancelBtn = document.querySelector('#confirm-cancel-btn') as HTMLButtonElement | null;
+  const okBtn = document.querySelector('#confirm-ok-btn') as HTMLButtonElement | null;
+
+  if (!modal || !messageEl || !cancelBtn || !okBtn) {
+    return Promise.resolve(false);
+  }
+
+  messageEl.textContent = message;
+  modal.style.display = 'flex';
+  okBtn.focus();
+
+  return new Promise(resolve => {
+    const cleanup = () => {
+      modal.style.display = 'none';
+      cancelBtn.removeEventListener('click', onCancel);
+      okBtn.removeEventListener('click', onConfirm);
+      modal.removeEventListener('click', onOverlayClick);
+      document.removeEventListener('keydown', onEscape);
+    };
+
+    const onCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+
+    const onConfirm = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    const onOverlayClick = (event: MouseEvent) => {
+      if (event.target === modal) onCancel();
+    };
+
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCancel();
+    };
+
+    cancelBtn.addEventListener('click', onCancel);
+    okBtn.addEventListener('click', onConfirm);
+    modal.addEventListener('click', onOverlayClick);
+    document.addEventListener('keydown', onEscape);
+  });
+}
+
 function initUI() {
   app.innerHTML = `
     <header>
       <h1>Gespreksbot Zorg (MBO 4)</h1>
-      <button id="reset-btn">Reset</button>
+      <button type="button" id="reset-btn">Reset</button>
     </header>
     <div id="setup-screen" class="scenario-selector">
       <div class="welcome-card" id="welcome-card">
-        <div class="welcome-header" id="welcome-toggle">
+        <div class="welcome-header">
           <h3>Welkom bij de Gespreksbot Zorg</h3>
-          <button class="welcome-collapse-btn" aria-label="Inklappen">&#9650;</button>
+          <button type="button" id="welcome-toggle" class="welcome-collapse-btn" aria-label="Inklappen of uitklappen" aria-expanded="true" aria-controls="welcome-body">&#9650;</button>
         </div>
         <div class="welcome-body" id="welcome-body">
-          <p>Oefen gesprekstechnieken met een virtuele cliënt of collega. Zo werkt het:</p>
+          <p>Oefen gesprekstechnieken met een virtuele client of collega. Zo werkt het:</p>
           <ol>
-            <li><strong>Stel je gesprek in</strong> — Kies een setting, scenario, leerdoel en niveau hieronder.</li>
-            <li><strong>Voer het gesprek</strong> — Typ of spreek je antwoorden. Gebruik de knoppen voor tips en theorie.</li>
-            <li><strong>Vraag feedback</strong> — Klik op 'Feedback' om een analyse van je gesprek te krijgen.</li>
+            <li><strong>Stel je gesprek in</strong> - Kies een setting, scenario, leerdoel en niveau hieronder.</li>
+            <li><strong>Voer het gesprek</strong> - Typ of spreek je antwoorden. Gebruik de knoppen voor tips en theorie.</li>
+            <li><strong>Vraag feedback</strong> - Klik op 'Feedback bekijken' voor een analyse van je gesprek.</li>
           </ol>
         </div>
       </div>
@@ -263,54 +438,59 @@ function initUI() {
             `).join('')}
           </div>
           <small class="leerdoel-hint">Maximaal 2 leerdoelen tegelijk</small>
-          <button type="button" id="setup-theory-btn" class="setup-theory-link">📚 Bekijk theorie bij geselecteerde leerdoelen</button>
+          <button type="button" id="setup-theory-btn" class="setup-theory-link">Bekijk theorie bij geselecteerde leerdoelen</button>
+          <p id="setup-theory-error" class="inline-error" role="alert" aria-live="polite"></p>
         </div>
         <div class="setting-group">
           <label>Niveau:</label>
           <select id="moeilijkheid-select">${SETTINGS_OPTIONS.moeilijkheid.map(m => `<option value="${m}" ${m === 'Gemiddeld' ? 'selected' : ''}>${m}</option>`).join('')}</select>
         </div>
         <div class="setting-group" id="archetype-group">
-          <label>Cliënt Type:</label>
+          <label>Client Type:</label>
           <select id="archetype-select">${SETTINGS_OPTIONS.clientArchetype.map(a => `<option value="${a}">${a}</option>`).join('')}</select>
         </div>
         <div class="setting-group" id="custom-archetype-group" style="display: none;">
-          <label>Beschrijf het cliënttype:</label>
+          <label>Beschrijf het clienttype:</label>
           <input type="text" id="custom-archetype-input" placeholder="Bijv: kind met downsyndroom, tiener met ADHD...">
         </div>
-        <button id="start-btn" style="width: 100%; margin-top: 1rem;">Start Maatwerk Gesprek</button>
+        <button type="button" id="start-btn" style="width: 100%; margin-top: 1rem;">Start maatwerk gesprek</button>
+        <p id="setup-error" class="inline-error" role="alert" aria-live="polite"></p>
       </div>
-      
+
       <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid #eee;">
-      
-      <h3>Of kies een cliënt:</h3>
+
+      <h3>Of kies een client:</h3>
       <div class="scenario-grid">
         ${scenarios.map(s => `
-          <div class="scenario-card predefined" data-id="${s.id}">
+          <div class="scenario-card predefined" data-id="${s.id}" role="button" tabindex="0" aria-label="Start scenario ${s.name}">
             <strong>${s.name}</strong><br>
             <small>${s.description}</small>
           </div>
         `).join('')}
       </div>
     </div>
+    <div id="chat-session-meta" class="chat-session-meta" style="display: none;">
+      <div id="chat-context-bar" class="chat-context-bar"></div>
+      <div id="chat-turn-status" class="chat-turn-status"></div>
+    </div>
     <div id="chat-container" style="display: none;"></div>
     <div id="input-area" style="display: none;">
-      <div id="checklist-panel" class="checklist-panel" style="display: none;">
-        <div class="checklist-header" id="checklist-close">
-          <span>📋 Geheugensteuntje</span>
-          <button type="button" class="checklist-close-btn">&times;</button>
+      <div id="checklist-panel" class="checklist-panel" style="display: none;" aria-hidden="true">
+        <div class="checklist-header">
+          <span>Geheugensteuntje</span>
+          <button type="button" id="checklist-close" class="checklist-close-btn" aria-label="Sluit geheugensteuntje">&times;</button>
         </div>
         <div class="checklist-body" id="checklist-body"></div>
       </div>
       <div class="input-toolbar">
-        <button type="button" id="theory-btn" title="Bekijk theorie">📚 Theorie</button>
-        <button type="button" id="checklist-btn" title="Geheugensteuntje">📋 Checklist</button>
-        <button type="button" id="hint-btn" title="Vraag een tip">💡 Tip</button>
-        <button type="button" id="feedback-btn" title="Vraag feedback">📋 Feedback</button>
+        <button type="button" id="theory-btn" title="Bekijk theorie">Theorie</button>
+        <button type="button" id="checklist-btn" title="Geheugensteuntje" aria-expanded="false" aria-controls="checklist-panel">Checklist</button>
+        <button type="button" id="hint-btn" title="Vraag een tip">Tip</button>
       </div>
       <div class="speech-toggle">
         <span class="speech-toggle-label">Spraak</span>
         <label class="toggle-switch">
-          <input type="checkbox" id="speech-toggle-input">
+          <input type="checkbox" id="speech-toggle-input" role="switch" aria-label="Spraakmodus aan/uit" aria-checked="false">
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -333,17 +513,23 @@ function initUI() {
           </div>
         </div>
       </div>
+      <button type="button" id="feedback-btn" class="feedback-action-btn" title="Rond het gesprek af en bekijk feedback">Feedback bekijken</button>
     </div>
     <div id="theory-modal" class="modal" style="display: none;">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>📚 Theorie</h2>
-          <button id="close-theory-btn" class="close-btn">&times;</button>
+          <h2>Theorie</h2>
+          <button type="button" id="close-theory-btn" class="close-btn" aria-label="Sluit theorievenster">&times;</button>
         </div>
         <div id="theory-content" class="modal-body"></div>
       </div>
     </div>
     <div id="feedback-screen" style="display: none;">
+      <div class="feedback-export-controls">
+        <label for="student-name-input">Studentnaam (optioneel)</label>
+        <input type="text" id="student-name-input" maxlength="100" placeholder="Bijv. Samira de Vries">
+      </div>
+      <div id="feedback-export-summary" class="feedback-export-summary"></div>
       <div class="feedback-container">
         <div class="feedback-gesprek">
           <h3>Gesprek</h3>
@@ -352,31 +538,45 @@ function initUI() {
         <div class="feedback-panel">
           <div class="feedback-panel-header">
             <h3>Feedback</h3>
-            <button id="copy-feedback-btn" class="copy-feedback-btn" title="Kopieer feedback" style="display: none;">
-              📄 Kopieer
-            </button>
+            <div class="feedback-panel-actions">
+              <button type="button" id="copy-feedback-btn" class="copy-feedback-btn" title="Kopieer feedback" style="display: none;">Kopieer</button>
+              <button type="button" id="export-feedback-btn" class="copy-feedback-btn" title="Exporteer feedback als PDF">Exporteer als PDF</button>
+            </div>
           </div>
           <div id="feedback-content">
             <p class="feedback-loading">Feedback wordt gegenereerd...</p>
           </div>
         </div>
       </div>
-      <button id="new-conversation-btn">Nieuw gesprek</button>
+      <button type="button" id="new-conversation-btn">Nieuw gesprek</button>
+    </div>
+    <div id="confirm-modal" class="modal" style="display: none;">
+      <div class="modal-content confirm-modal-content" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div class="modal-header">
+          <h2 id="confirm-title">Bevestiging</h2>
+        </div>
+        <div class="modal-body">
+          <p id="confirm-message"></p>
+          <div class="confirm-actions">
+            <button type="button" id="confirm-cancel-btn" class="modal-secondary-btn">Annuleren</button>
+            <button type="button" id="confirm-ok-btn" class="modal-primary-btn">Doorgaan</button>
+          </div>
+        </div>
+      </div>
     </div>
   `
 
   document.querySelector('#start-btn')?.addEventListener('click', () => {
-    // Validate at least one learning goal is selected
     const checkboxes = document.querySelectorAll('input[name="leerdoel"]:checked');
     if (checkboxes.length === 0) {
-      alert('Selecteer minimaal 1 leerdoel (of kies "Vrije oefening")');
+      setInlineError('setup-error', 'Selecteer minimaal 1 leerdoel (of kies "Vrije oefening").');
       return;
     }
+    clearInlineError('setup-error');
     updateSettings();
     startScenarioFromSettings();
   });
 
-  // Show/hide custom scenario input and archetype based on selection
   document.querySelector('#scenario-type-select')?.addEventListener('change', (e) => {
     const value = (e.target as HTMLSelectElement).value;
     const customGroup = document.querySelector('#custom-scenario-group') as HTMLDivElement;
@@ -386,12 +586,10 @@ function initUI() {
       customGroup.style.display = value === 'Eigen scenario' ? 'flex' : 'none';
     }
     if (archetypeGroup) {
-      // Hide archetype for custom scenarios - Claude will infer it
       archetypeGroup.style.display = value === 'Eigen scenario' ? 'none' : 'flex';
     }
   });
 
-  // Show/hide custom archetype input based on selection
   document.querySelector('#archetype-select')?.addEventListener('change', (e) => {
     const value = (e.target as HTMLSelectElement).value;
     const customArchetypeGroup = document.querySelector('#custom-archetype-group') as HTMLDivElement;
@@ -402,14 +600,23 @@ function initUI() {
 
   const cards = document.querySelectorAll('.scenario-card.predefined');
   cards.forEach(card => {
-    card.addEventListener('click', () => {
+    const startCardScenario = () => {
       const id = card.getAttribute('data-id');
-      startScenario(id!);
+      if (id) startScenario(id);
+    };
+
+    card.addEventListener('click', startCardScenario);
+    card.addEventListener('keydown', (e) => {
+      const keyboardEvent = e as KeyboardEvent;
+      if (keyboardEvent.key === 'Enter' || keyboardEvent.key === ' ') {
+        keyboardEvent.preventDefault();
+        startCardScenario();
+      }
     });
   });
 
-  const form = document.querySelector<HTMLFormElement>('#input-form')!;
-  form.addEventListener('submit', (e) => {
+  const form = document.querySelector<HTMLFormElement>('#input-form');
+  form?.addEventListener('submit', (e) => {
     e.preventDefault();
     handleSendMessage();
   });
@@ -426,7 +633,6 @@ function initUI() {
     closeTheory();
   });
 
-  // Close modal when clicking outside
   document.querySelector('#theory-modal')?.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).id === 'theory-modal') {
       closeTheory();
@@ -438,20 +644,27 @@ function initUI() {
   });
 
   document.querySelector('#copy-feedback-btn')?.addEventListener('click', copyFeedback);
+  document.querySelector('#export-feedback-btn')?.addEventListener('click', printFeedback);
+
+  document.querySelector('#student-name-input')?.addEventListener('input', () => {
+    renderFeedbackExportSummary();
+  });
 
   document.querySelector('#new-conversation-btn')?.addEventListener('click', () => {
     location.reload();
   });
 
-  document.querySelector('#reset-btn')?.addEventListener('click', () => {
-    if (conversationHistory.length === 0 || confirm('Weet je zeker dat je het gesprek wilt afsluiten? Je voortgang gaat verloren.')) {
-      location.reload();
-    }
+  document.querySelector('#reset-btn')?.addEventListener('click', async () => {
+    const shouldReset = conversationHistory.length === 0
+      || await showConfirmDialog('Weet je zeker dat je het gesprek wilt afsluiten? Je voortgang gaat verloren.');
+    if (shouldReset) location.reload();
   });
 
-  // Speech toggle
   document.querySelector('#speech-toggle-input')?.addEventListener('change', (e) => {
-    speechMode = (e.target as HTMLInputElement).checked;
+    const toggle = e.target as HTMLInputElement;
+    speechMode = toggle.checked;
+    toggle.setAttribute('aria-checked', String(speechMode));
+
     const inputForm = document.querySelector('#input-form') as HTMLElement;
     const speechInput = document.querySelector('#speech-input') as HTMLElement;
     if (speechMode) {
@@ -464,7 +677,6 @@ function initUI() {
     }
   });
 
-  // Live conversation button
   document.querySelector('#live-conv-btn')?.addEventListener('click', () => {
     if (liveConversationActive) {
       stopLiveConversation();
@@ -473,28 +685,24 @@ function initUI() {
     }
   });
 
-  // Update start button state based on checkbox selection
   const checkboxGroup = document.querySelector('.checkbox-group');
-  checkboxGroup?.addEventListener('change', updateStartButtonState);
-  updateStartButtonState(); // Initial state
-
-  document.querySelector('#welcome-toggle')?.addEventListener('click', () => {
-    const body = document.querySelector('#welcome-body') as HTMLDivElement;
-    const btn = document.querySelector('.welcome-collapse-btn') as HTMLButtonElement;
-    if (body && btn) {
-      const isCollapsed = body.style.display === 'none';
-      body.style.display = isCollapsed ? 'block' : 'none';
-      btn.innerHTML = isCollapsed ? '&#9650;' : '&#9660;';
-    }
+  checkboxGroup?.addEventListener('change', () => {
+    clearInlineError('setup-error');
+    clearInlineError('setup-theory-error');
+    updateStartButtonState();
   });
+  updateStartButtonState();
+
+  document.querySelector('#welcome-toggle')?.addEventListener('click', toggleWelcomeBody);
 
   document.querySelector('#setup-theory-btn')?.addEventListener('click', () => {
     const checkboxes = document.querySelectorAll('input[name="leerdoel"]:checked');
     const currentLeerdoelen = Array.from(checkboxes).map(cb => (cb as HTMLInputElement).value);
     if (currentLeerdoelen.length === 0) {
-      alert('Selecteer eerst minimaal 1 leerdoel om theorie te bekijken.');
+      setInlineError('setup-theory-error', 'Selecteer eerst minimaal 1 leerdoel om theorie te bekijken.');
       return;
     }
+    clearInlineError('setup-theory-error');
     const previousLeerdoelen = selectedSettings.leerdoelen;
     selectedSettings.leerdoelen = currentLeerdoelen;
     showTheory();
@@ -503,16 +711,17 @@ function initUI() {
 
   document.querySelector('#checklist-btn')?.addEventListener('click', () => {
     const panel = document.querySelector('#checklist-panel') as HTMLDivElement;
-    if (panel) {
-      const isVisible = panel.style.display !== 'none';
-      if (!isVisible) populateChecklist();
-      panel.style.display = isVisible ? 'none' : 'block';
-    }
+    const isVisible = !!panel && panel.style.display !== 'none';
+    if (!isVisible) populateChecklist();
+    setChecklistPanelVisibility(!isVisible);
   });
+
   document.querySelector('#checklist-close')?.addEventListener('click', () => {
-    const panel = document.querySelector('#checklist-panel') as HTMLDivElement;
-    if (panel) panel.style.display = 'none';
+    setChecklistPanelVisibility(false);
   });
+
+  renderFeedbackExportSummary();
+  updateChatSessionMeta();
 }
 
 function updateStartButtonState() {
@@ -575,6 +784,9 @@ async function startScenarioFromSettings() {
     }
   };
 
+  conversationHistory = [];
+  selfAssessment = {};
+  conversationStartedAt = new Date();
   prepareChat();
   const scenarioLabel = selectedSettings.scenarioType === 'Eigen scenario' ? selectedSettings.customScenario.substring(0, 50) + '...' : selectedSettings.scenarioType;
   const rolLabel = isCollegaMode ? 'Collega' : 'Cliënt';
@@ -582,7 +794,7 @@ async function startScenarioFromSettings() {
   addMessage(rolLabel, '*...*', 'patient'); // Typing indicator
 
   // Request dynamic opening from Claude
-  conversationHistory = []; // Reset history for new conversation
+  updateChatSessionMeta();
 
   // Determine scenario description
   let scenarioDescription = '';
@@ -749,8 +961,14 @@ function startScenario(id: string) {
   currentScenario = scenarios.find(s => s.id === id) || null;
   if (!currentScenario) return;
 
+  conversationHistory = [];
+  selfAssessment = {};
+  conversationStartedAt = new Date();
+  selectedSettings.scenarioType = currentScenario.name;
+
   prepareChat();
   addMessage('Systeem', `Je start het gesprek met ${currentScenario.persona.name}. Theorie: MBO 4 niveau.`, 'system');
+  updateChatSessionMeta();
 
   setTimeout(() => {
     addMessage(currentScenario!.persona.name, `*${currentScenario!.persona.tone}* ${currentScenario!.persona.situation}`, 'patient');
@@ -759,8 +977,11 @@ function startScenario(id: string) {
 
 function prepareChat() {
   document.querySelector<HTMLDivElement>('#setup-screen')!.style.display = 'none';
+  document.querySelector<HTMLDivElement>('#chat-session-meta')!.style.display = 'flex';
   document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'flex';
   document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'flex';
+  setChecklistPanelVisibility(false);
+  updateChatSessionMeta();
 }
 
 function showTheory() {
@@ -897,15 +1118,21 @@ async function showFeedback() {
   }
 
   // Hide chat and input, show feedback screen
+  document.querySelector<HTMLDivElement>('#chat-session-meta')!.style.display = 'none';
   document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'none';
   document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'none';
+  updateChatSessionMeta();
   const feedbackScreen = document.querySelector<HTMLDivElement>('#feedback-screen')!;
   feedbackScreen.style.display = 'flex';
+  renderFeedbackExportSummary();
 
   // Copy conversation to feedback panel
   const gesprekContent = document.querySelector('#feedback-gesprek-content')!;
   const chatContainer = document.querySelector('#chat-container')!;
   gesprekContent.innerHTML = chatContainer.innerHTML;
+
+  const copyBtn = document.querySelector('#copy-feedback-btn') as HTMLButtonElement | null;
+  if (copyBtn) copyBtn.style.display = 'none';
 
   // Show self-assessment form first
   const feedbackContent = document.querySelector('#feedback-content')!;
@@ -1019,6 +1246,7 @@ function handleSendMessage() {
   addMessage('Jij (Student)', text, 'student');
   input.value = '';
   conversationHistory.push({ role: 'user', content: text });
+  updateChatSessionMeta();
   addMessage(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Cliënt'), '*denkt na...*', 'patient');
 
   generateResponse().finally(() => {
@@ -1197,6 +1425,7 @@ async function generateResponseAndReturn(): Promise<string | null> {
     } else {
       conversationHistory.push({ role: 'assistant', content: data.response });
       addMessage(persona.name, data.response, 'patient');
+      updateChatSessionMeta();
       return data.response;
     }
   } catch (error) {
@@ -1206,7 +1435,7 @@ async function generateResponseAndReturn(): Promise<string | null> {
     if (lastMessage?.textContent?.includes('denkt na')) {
       lastMessage.remove();
     }
-    addMessage('Systeem', 'Kan geen verbinding maken met de AI-server. Start de server met: cd server && npm start', 'system');
+    addMessage('Systeem', 'Er is een probleem met de verbinding. Probeer het later opnieuw of neem contact op met je docent.', 'system');
     return null;
   }
 }
@@ -1395,6 +1624,7 @@ async function handleLiveSpeechInput(audioBlob: Blob) {
     // Add transcript to chat
     addMessage('Jij (Student)', transcript, 'student');
     conversationHistory.push({ role: 'user', content: transcript });
+    updateChatSessionMeta();
 
     // Show typing indicator
     addMessage(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Cliënt'), '*denkt na...*', 'patient');
@@ -1451,3 +1681,4 @@ async function speakResponse(text: string) {
 }
 
 initUI()
+
