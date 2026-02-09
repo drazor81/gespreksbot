@@ -12,9 +12,5 @@
     "typescript": "~5.9.3",
     "vite": "^7.2.4"
   },
-  "dependencies": {
-    "@types/lodash": "^4.17.21",
-    "lodash": "^4.17.21",
-    "lucide-static": "^0.562.0"
-  }
+  "dependencies": {}
 }
