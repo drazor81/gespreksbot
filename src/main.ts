@@ -65,6 +65,7 @@ let conversationClosed = false;
 let latestFeedbackScores: ScoreStats | null = null;
 let dashboardSavedForConversation = false;
 let cachedSystemPrompt: string | null = null;
+let currentRequestController: AbortController | null = null;
 
 const DASHBOARD_STORAGE_KEY = 'gespreksbot-docent-dashboard-v1';
 
@@ -338,6 +339,7 @@ function loadDashboardSessions(): DashboardSession[] {
     const parsed = JSON.parse(raw) as DashboardSession[];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
+    localStorage.removeItem(DASHBOARD_STORAGE_KEY);
     return [];
   }
 }
@@ -1255,10 +1257,14 @@ Voorbeeld output:
   // Haal kennis op voor geselecteerde leerdoelen
   const clientInstructies = getClientInstructies(selectedSettings.leerdoelen);
 
+  if (currentRequestController) currentRequestController.abort();
+  currentRequestController = new AbortController();
+
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: currentRequestController.signal,
       body: JSON.stringify({
         systemPrompt: cachedSystemPrompt
           .replace('{{SETTING}}', selectedSettings.setting)
@@ -1275,9 +1281,15 @@ Voorbeeld output:
       })
     });
 
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
     const data = await response.json();
 
     removeTypingIndicators();
+
+    if (conversationClosed) return;
 
     if (data.error) {
       addMessage('Systeem', `Fout: ${data.error}`, 'system');
@@ -1299,9 +1311,12 @@ Voorbeeld output:
         updateChatSessionMeta();
       }
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === 'AbortError') return;
     removeTypingIndicators();
     addMessage('Systeem', 'Er is een probleem met de verbinding. Probeer het later opnieuw of neem contact op met je docent.', 'system');
+  } finally {
+    currentRequestController = null;
   }
 }
 
@@ -1404,7 +1419,11 @@ function showTheory() {
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>');
 
-  content.innerHTML = htmlContent;
+  // Sanitize: strip script tags and event handlers as defense-in-depth
+  const sanitized = htmlContent
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+  content.innerHTML = sanitized;
   modal.style.display = 'flex';
 }
 
@@ -1514,6 +1533,10 @@ Geef nu je feedback volgens de voorgeschreven structuur.`;
       })
     });
 
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
     const data = await response.json();
 
     if (data.error) {
@@ -1570,6 +1593,7 @@ async function showFeedback() {
     feedbackContent.innerHTML = saForm;
 
     document.querySelector('#sa-submit-btn')?.addEventListener('click', () => {
+      // Using { once: true } equivalent - innerHTML replacement prevents duplicates
       // Collect self-assessment answers
       selfAssessment = {};
       const kennis = getKennisVoorLeerdoelen(selectedSettings.leerdoelen);
@@ -1764,6 +1788,12 @@ async function getHint() {
   const hintBtn = document.querySelector('#hint-btn') as HTMLButtonElement;
   if (hintBtn) hintBtn.disabled = true;
 
+  if (conversationClosed) {
+    addMessage('Coach', 'Het gesprek is afgerond. Bekijk je feedback voor uitgebreide tips!', 'meta');
+    if (hintBtn) hintBtn.disabled = false;
+    return;
+  }
+
   // Check if there's a conversation to give hints about
   if (conversationHistory.length === 0) {
     addMessage('Coach', '💡 Begin eerst het gesprek met de cliënt, dan kan ik je tips geven!', 'meta');
@@ -1810,6 +1840,10 @@ Analyseer het gesprek op basis van je kennis over de gesprekstechnieken hierbove
         messages: [{ role: 'user', content: coachUserPrompt }]
       })
     });
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
 
     const data = await response.json();
 
@@ -1863,19 +1897,29 @@ async function generateResponseAndReturn(): Promise<string | null> {
     .replace('{{ROLTYPE_CONTEXT}}', isCollegaMode ? getCollegaContext(selectedSettings.setting) : '')
     + clientInstructies;
 
+  if (currentRequestController) currentRequestController.abort();
+  currentRequestController = new AbortController();
+
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: currentRequestController.signal,
       body: JSON.stringify({
         systemPrompt: dynamicPrompt,
         messages: conversationHistory
       })
     });
 
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
     const data = await response.json();
 
     removeTypingIndicators();
+
+    if (conversationClosed) return null;
 
     if (data.error) {
       addMessage('Systeem', `Fout: ${data.error}`, 'system');
@@ -1886,10 +1930,13 @@ async function generateResponseAndReturn(): Promise<string | null> {
       updateChatSessionMeta();
       return data.response;
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.name === 'AbortError') return null;
     removeTypingIndicators();
     addMessage('Systeem', 'Er is een probleem met de verbinding. Probeer het later opnieuw of neem contact op met je docent.', 'system');
     return null;
+  } finally {
+    currentRequestController = null;
   }
 }
 
@@ -1940,12 +1987,21 @@ function updateLiveStatus(state: 'idle' | 'listening' | 'processing' | 'speaking
   }
 }
 
+let emptyTranscriptCount = 0;
+const MAX_EMPTY_RETRIES = 3;
+
 async function startLiveConversation() {
   try {
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     liveConversationActive = true;
+    emptyTranscriptCount = 0;
     startListeningCycle();
   } catch (err) {
+    if (micStream) {
+      micStream.getTracks().forEach(t => t.stop());
+      micStream = null;
+    }
+    liveConversationActive = false;
     addMessage('Systeem', 'Kon microfoon niet openen. Controleer je browserinstellingen.', 'system');
   }
 }
@@ -2023,22 +2079,36 @@ function startSilenceDetection(stream: MediaStream) {
   const SILENCE_DURATION = 1500; // 1.5 seconds
 
   function checkSilence() {
-    if (!isRecording || !liveConversationActive) return;
-
-    analyser.getByteFrequencyData(dataArray);
-    const average = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
-
-    if (average < SILENCE_THRESHOLD) {
-      if (!silenceStart) silenceStart = Date.now();
-      else if (Date.now() - silenceStart > SILENCE_DURATION) {
-        stopCurrentRecording();
-        return;
+    if (!isRecording || !liveConversationActive) {
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
       }
-    } else {
-      silenceStart = null;
+      return;
     }
 
-    silenceTimer = window.setTimeout(checkSilence, 100);
+    try {
+      analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((sum, v) => sum + v, 0) / dataArray.length;
+
+      if (average < SILENCE_THRESHOLD) {
+        if (!silenceStart) silenceStart = Date.now();
+        else if (Date.now() - silenceStart > SILENCE_DURATION) {
+          stopCurrentRecording();
+          return;
+        }
+      } else {
+        silenceStart = null;
+      }
+
+      silenceTimer = window.setTimeout(checkSilence, 100);
+    } catch {
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+      }
+      stopCurrentRecording();
+    }
   }
 
   // Wait before starting silence detection to avoid instant stop
@@ -2059,6 +2129,14 @@ async function handleLiveSpeechInput(audioBlob: Blob) {
       body: formData,
     });
 
+    if (!liveConversationActive) return;
+
+    if (!sttResponse.ok) {
+      addMessage('Systeem', 'Spraakherkenning tijdelijk niet beschikbaar.', 'system');
+      if (liveConversationActive) startListeningCycle();
+      return;
+    }
+
     const sttData = await sttResponse.json();
 
     if (sttData.error) {
@@ -2069,15 +2147,26 @@ async function handleLiveSpeechInput(audioBlob: Blob) {
 
     const transcript = sttData.transcript?.trim();
     if (!transcript) {
-      // No speech detected — just resume listening
-      if (liveConversationActive) startListeningCycle();
+      emptyTranscriptCount++;
+      if (emptyTranscriptCount >= MAX_EMPTY_RETRIES) {
+        addMessage('Systeem', 'Geen spraak gedetecteerd. Druk opnieuw op de microfoon.', 'system');
+        stopLiveConversation();
+        return;
+      }
+      // Retry with delay
+      setTimeout(() => {
+        if (liveConversationActive) startListeningCycle();
+      }, emptyTranscriptCount * 1000);
       return;
     }
+    emptyTranscriptCount = 0;
 
     // Add transcript to chat
     addMessage('Jij (Student)', transcript, 'student');
     conversationHistory.push({ role: 'user', content: transcript });
     updateChatSessionMeta();
+
+    if (!liveConversationActive) return;
 
     // Show typing indicator
     addTypingIndicator(currentScenario?.persona.name || (isCollegaMode ? 'Collega' : 'Client'), 'patient');
@@ -2085,13 +2174,17 @@ async function handleLiveSpeechInput(audioBlob: Blob) {
     // Generate response
     const responseText = await generateResponseAndReturn();
 
+    if (!liveConversationActive) return;
+
     // Speak the response, then resume listening
     if (responseText && liveConversationActive) {
       updateLiveStatus('speaking');
       await speakResponse(responseText);
     }
   } catch (error) {
-    addMessage('Systeem', 'Fout bij spraakverwerking.', 'system');
+    if (liveConversationActive) {
+      addMessage('Systeem', 'Fout bij spraakverwerking.', 'system');
+    }
   }
 
   // Resume listening for next turn
@@ -2101,6 +2194,7 @@ async function handleLiveSpeechInput(audioBlob: Blob) {
 }
 
 async function speakResponse(text: string) {
+  let audioUrl: string | null = null;
   try {
     const response = await fetch(`${API_BASE}/api/text-to-speech`, {
       method: 'POST',
@@ -2114,22 +2208,18 @@ async function speakResponse(text: string) {
     }
 
     const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
+    audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
 
     await new Promise<void>((resolve) => {
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-        resolve();
-      };
-      audio.onerror = () => {
-        URL.revokeObjectURL(audioUrl);
-        resolve();
-      };
+      audio.onended = () => resolve();
+      audio.onerror = () => resolve();
       audio.play();
     });
   } catch (error) {
     console.error('TTS playback error:', error);
+  } finally {
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
   }
 }
 

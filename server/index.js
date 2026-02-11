@@ -43,8 +43,11 @@ const apiLimiter = rateLimit({
 
 app.use('/api/', apiLimiter);
 
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+
 const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
+    timeout: 30000,
 });
 
 // Google Cloud clients (only initialize if credentials are configured)
@@ -91,7 +94,7 @@ app.post('/api/chat', async (req, res) => {
         }
 
         const response = await anthropic.messages.create({
-            model: 'claude-sonnet-4-20250514',
+            model: MODEL,
             max_tokens: 1024,
             system: systemPrompt,
             messages: messages.map(m => ({
@@ -116,6 +119,11 @@ app.post('/api/speech-to-text', upload.single('audio'), async (req, res) => {
         }
         if (!req.file) {
             return res.status(400).json({ error: 'Geen audiobestand ontvangen.' });
+        }
+
+        const allowedMimeTypes = ['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp4'];
+        if (!allowedMimeTypes.includes(req.file.mimetype)) {
+            return res.status(400).json({ error: 'Ongeldig bestandstype. Alleen audio bestanden toegestaan.' });
         }
 
         const audioBytes = req.file.buffer.toString('base64');
@@ -150,8 +158,11 @@ app.post('/api/text-to-speech', async (req, res) => {
         }
 
         const { text } = req.body;
-        if (!text) {
+        if (!text || typeof text !== 'string') {
             return res.status(400).json({ error: 'Geen tekst ontvangen.' });
+        }
+        if (text.length > 5000) {
+            return res.status(400).json({ error: 'Tekst te lang (max 5000 karakters).' });
         }
 
         // Strip *italics* non-verbal cues before sending to TTS
@@ -166,6 +177,10 @@ app.post('/api/text-to-speech', async (req, res) => {
             voice: { languageCode: 'nl-NL', ssmlGender: 'NEUTRAL' },
             audioConfig: { audioEncoding: 'MP3' },
         });
+
+        if (!response.audioContent) {
+            return res.status(500).json({ error: 'Spraaksynthese retourneerde geen audio.' });
+        }
 
         res.set('Content-Type', 'audio/mpeg');
         res.send(Buffer.from(response.audioContent));
