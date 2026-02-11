@@ -1,7 +1,5 @@
 import './style.css'
 import personasData from '../personas.json'
-import { SYSTEM_PROMPT_MBO_V2 } from './prompts/system-prompt'
-import { FEEDBACK_PROMPT } from './prompts/feedback-prompt'
 import { getClientInstructies, getCoachContext, getTheorieVoorStudent, getKorteUitleg, getKennisVoorLeerdoelen, getRubricContext } from './knowledge'
 
 interface Persona {
@@ -43,7 +41,6 @@ interface DashboardSession {
   scores: ScoreStats | null;
 }
 
-const SYSTEM_PROMPT_MBO = SYSTEM_PROMPT_MBO_V2;
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 const API_URL = `${API_BASE}/api/chat`;
@@ -67,6 +64,7 @@ let conversationStartedAt: Date | null = null;
 let conversationClosed = false;
 let latestFeedbackScores: ScoreStats | null = null;
 let dashboardSavedForConversation = false;
+let cachedSystemPrompt: string | null = null;
 
 const DASHBOARD_STORAGE_KEY = 'gespreksbot-docent-dashboard-v1';
 
@@ -1239,6 +1237,21 @@ Voorbeeld output:
 *Kijkt op vanuit de stoel* Goedemorgen... ben ik eindelijk aan de beurt?`;
   }
 
+  /* 
+   * Optimization: Lazy load the large system prompt only when starting the scenario.
+   * This reduces the initial bundle size significantly.
+   */
+  try {
+    if (!cachedSystemPrompt) {
+      const promptModule = await import('./prompts/system-prompt');
+      cachedSystemPrompt = promptModule.SYSTEM_PROMPT_MBO_V2;
+    }
+  } catch (error) {
+    console.error('Failed to load system prompt:', error);
+    addMessage('Systeem', 'Fout: Kon de systeem-prompt niet laden.', 'system');
+    return;
+  }
+
   // Haal kennis op voor geselecteerde leerdoelen
   const clientInstructies = getClientInstructies(selectedSettings.leerdoelen);
 
@@ -1247,7 +1260,7 @@ Voorbeeld output:
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemPrompt: SYSTEM_PROMPT_MBO
+        systemPrompt: cachedSystemPrompt
           .replace('{{SETTING}}', selectedSettings.setting)
           .replace('{{SCENARIO_TYPE}}', selectedSettings.scenarioType)
           .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
@@ -1458,7 +1471,18 @@ async function generateAIFeedback() {
   const rubricKennis = getRubricContext(selectedSettings.leerdoelen);
   const selfAssessmentContext = buildSelfAssessmentContext();
 
-  const feedbackSystemPrompt = FEEDBACK_PROMPT
+  // Lazy load feedback prompt
+  let feedbackPromptTemplate;
+  try {
+    const promptModule = await import('./prompts/feedback-prompt');
+    feedbackPromptTemplate = promptModule.FEEDBACK_PROMPT;
+  } catch (error) {
+    console.error('Failed to load feedback prompt:', error);
+    feedbackContent.innerHTML = summaryHtml + '<p class="feedback-error">Kon feedback-prompt niet laden. Probeer opnieuw.</p>';
+    return;
+  }
+
+  const feedbackSystemPrompt = feedbackPromptTemplate
     .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
     .replace('{{COACH_KENNIS}}', coachKennis)
     .replace('{{RUBRIC}}', rubricKennis)
@@ -1814,8 +1838,20 @@ async function generateResponseAndReturn(): Promise<string | null> {
   // Haal kennis op voor geselecteerde leerdoelen
   const clientInstructies = getClientInstructies(selectedSettings.leerdoelen);
 
+  // Ensure system prompt is loaded
+  if (!cachedSystemPrompt) {
+    try {
+      const promptModule = await import('./prompts/system-prompt');
+      cachedSystemPrompt = promptModule.SYSTEM_PROMPT_MBO_V2;
+    } catch (error) {
+      console.error('Failed to load system prompt:', error);
+      addMessage('Systeem', 'Fout: Kon de systeem-prompt niet laden.', 'system');
+      return null;
+    }
+  }
+
   // Build dynamic system prompt
-  const dynamicPrompt = SYSTEM_PROMPT_MBO
+  const dynamicPrompt = cachedSystemPrompt
     .replace('{{SETTING}}', selectedSettings.setting)
     .replace('{{SCENARIO_TYPE}}', selectedSettings.scenarioType)
     .replace('{{LEERDOELEN}}', selectedSettings.leerdoelen.join(', '))
