@@ -34,15 +34,15 @@ export interface Kennisitem {
 
 // Map van leerdoel-ID naar kennisitem
 const kennisbank: Record<string, Kennisitem> = {
-  'LSD': lsd,
+  LSD: lsd,
   'OMA/ANNA': omaAnna,
-  'NIVEA': nivea,
-  'SBAR': sbar,
+  NIVEA: nivea,
+  SBAR: sbar,
   'Klinisch Redeneren': klinischRedeneren,
-  'MGV': mgv,
+  MGV: mgv,
   '4G-model': vierGModel,
   'De-escalatie': deEscalatie,
-  'STARR': starr,
+  STARR: starr
 };
 
 export function getKorteUitleg(id: string): string {
@@ -55,9 +55,7 @@ export function getKorteUitleg(id: string): string {
 
 // Haal kennis op voor geselecteerde leerdoelen
 export function getKennisVoorLeerdoelen(leerdoelen: string[]): Kennisitem[] {
-  const specifiek = leerdoelen
-    .filter(ld => ld !== 'Vrije oefening' && kennisbank[ld])
-    .map(ld => kennisbank[ld]);
+  const specifiek = leerdoelen.filter((ld) => ld !== 'Vrije oefening' && kennisbank[ld]).map((ld) => kennisbank[ld]);
 
   // Bij alleen "Vrije oefening": geef LSD als basistechniek mee
   if (specifiek.length === 0 && leerdoelen.includes('Vrije oefening')) {
@@ -72,11 +70,13 @@ export function getClientInstructies(leerdoelen: string[]): string {
   const kennis = getKennisVoorLeerdoelen(leerdoelen);
   if (kennis.length === 0) return '';
 
-  const instructies = kennis.map(k => {
-    return `**${k.naam}:**
+  const instructies = kennis
+    .map((k) => {
+      return `**${k.naam}:**
 - Als de student het GOED doet: ${k.clientReactie.bijGoed}
 - Als de student het FOUT doet: ${k.clientReactie.bijFout}`;
-  }).join('\n\n');
+    })
+    .join('\n\n');
 
   return `
 ## Hoe je reageert op de gesprekstechnieken
@@ -92,13 +92,16 @@ export function getRubricContext(leerdoelen: string[]): string {
   const kennis = getKennisVoorLeerdoelen(leerdoelen);
   if (kennis.length === 0) return '';
   return kennis
-    .filter(k => k.rubric && k.rubric.length > 0)
-    .map(k => {
-      const rows = k.rubric!.map(r =>
-        `- ${r.criterium}: onvoldoende="${r.onvoldoende}" | voldoende="${r.voldoende}" | goed="${r.goed}"`
-      ).join('\n');
+    .filter((k) => k.rubric && k.rubric.length > 0)
+    .map((k) => {
+      const rows = k
+        .rubric!.map(
+          (r) => `- ${r.criterium}: onvoldoende="${r.onvoldoende}" | voldoende="${r.voldoende}" | goed="${r.goed}"`
+        )
+        .join('\n');
       return `**${k.naam} rubric:**\n${rows}`;
-    }).join('\n\n');
+    })
+    .join('\n\n');
 }
 
 // Genereer context voor de coach op basis van leerdoelen
@@ -106,19 +109,21 @@ export function getCoachContext(leerdoelen: string[]): string {
   const kennis = getKennisVoorLeerdoelen(leerdoelen);
   if (kennis.length === 0) return '';
 
-  const context = kennis.map(k => {
-    return `**${k.naam}:**
+  const context = kennis
+    .map((k) => {
+      return `**${k.naam}:**
 ${k.korteUitleg}
 
 Waar je op let:
-${k.coachTips.map(tip => `- ${tip}`).join('\n')}
+${k.coachTips.map((tip) => `- ${tip}`).join('\n')}
 
 Voorbeelden van GOED:
-${k.voorbeeldenGoed.map(v => `- ${v}`).join('\n')}
+${k.voorbeeldenGoed.map((v) => `- ${v}`).join('\n')}
 
 Voorbeelden van FOUT:
-${k.voorbeeldenFout.map(v => `- ${v}`).join('\n')}`;
-  }).join('\n\n---\n\n');
+${k.voorbeeldenFout.map((v) => `- ${v}`).join('\n')}`;
+    })
+    .join('\n\n---\n\n');
 
   return context;
 }
@@ -128,26 +133,28 @@ export function getTheorieVoorStudent(leerdoelen: string[]): string {
   const kennis = getKennisVoorLeerdoelen(leerdoelen);
   if (kennis.length === 0) return 'Geen theorie beschikbaar voor de geselecteerde leerdoelen.';
 
-  return kennis.map(k => {
-    let theorie = `## ${k.naam}\n\n${k.korteUitleg}`;
+  return kennis
+    .map((k) => {
+      let theorie = `## ${k.naam}\n\n${k.korteUitleg}`;
 
-    if (k.uitgebreideTheorie) {
-      theorie += `\n\n${k.uitgebreideTheorie}`;
-    }
-
-    theorie += `\n\n**Voorbeelden van goede zinnen:**\n${k.voorbeeldenGoed.map(v => `- ${v}`).join('\n')}`;
-    theorie += `\n\n**Dit moet je vermijden:**\n${k.voorbeeldenFout.map(v => `- ${v}`).join('\n')}`;
-
-    if (k.rubric && k.rubric.length > 0) {
-      theorie += `\n\n<h3>Beoordelingscriteria</h3><div class="rubric-container">`;
-      for (const r of k.rubric) {
-        theorie += `<div class="rubric-item"><strong>${r.criterium}</strong><div class="rubric-levels"><div class="rubric-level good"><span class="rubric-label">Goed: </span><span>${r.goed}</span></div><div class="rubric-level sufficient"><span class="rubric-label">Voldoende: </span><span>${r.voldoende}</span></div><div class="rubric-level insufficient"><span class="rubric-label">Onvoldoende: </span><span>${r.onvoldoende}</span></div></div></div>`;
+      if (k.uitgebreideTheorie) {
+        theorie += `\n\n${k.uitgebreideTheorie}`;
       }
-      theorie += `</div>`;
-    }
 
-    return theorie;
-  }).join('\n\n---\n\n');
+      theorie += `\n\n**Voorbeelden van goede zinnen:**\n${k.voorbeeldenGoed.map((v) => `- ${v}`).join('\n')}`;
+      theorie += `\n\n**Dit moet je vermijden:**\n${k.voorbeeldenFout.map((v) => `- ${v}`).join('\n')}`;
+
+      if (k.rubric && k.rubric.length > 0) {
+        theorie += `\n\n<h3>Beoordelingscriteria</h3><div class="rubric-container">`;
+        for (const r of k.rubric) {
+          theorie += `<div class="rubric-item"><strong>${r.criterium}</strong><div class="rubric-levels"><div class="rubric-level good"><span class="rubric-label">Goed: </span><span>${r.goed}</span></div><div class="rubric-level sufficient"><span class="rubric-label">Voldoende: </span><span>${r.voldoende}</span></div><div class="rubric-level insufficient"><span class="rubric-label">Onvoldoende: </span><span>${r.onvoldoende}</span></div></div></div>`;
+        }
+        theorie += `</div>`;
+      }
+
+      return theorie;
+    })
+    .join('\n\n---\n\n');
 }
 
 export default kennisbank;

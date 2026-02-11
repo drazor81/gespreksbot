@@ -44,34 +44,34 @@
 
 ---
 
-## Fase 3: Feedback & Leerrendement (MIDDEN) - TODO
+## Fase 3: Feedback & Leerrendement (MIDDEN) - AFGEROND
 
 *Vergroot het leereffect aanzienlijk*
 
-| # | Actie | Bron | Impact |
-|---|---|---|---|
-| 3.1 | **Feedback exporteerbaar maken** (PDF/tekst/kopieerknop) | Student + Docent | Portfolio-integratie |
-| 3.2 | **Self-assessment stap VOOR automatische feedback** | Docent | Reflectievaardigheid |
-| 3.3 | **Visuele feedbacksamenvatting** (tabel of score per techniek-element) | Student + Docent | Overzichtelijker |
-| 3.4 | **Rubrics per leerdoel** toevoegen aan kennisbank | Docent | Studenten weten waarop ze beoordeeld worden |
-| 3.5 | **"Vrije oefening" aanpassen** - basis LSD altijd meegeven | Docent | Altijd feedback op basisvaardigheden |
-| 3.6 | **Feedback-layout fixen** (CSS bug: column vs. row op groot scherm) | Coder | UI-bug |
+| # | Actie | Bron | Impact | Status |
+|---|---|---|---|---|
+| 3.1 | **Feedback exporteerbaar maken** (PDF/tekst/kopieerknop) | Student + Docent | Portfolio-integratie | Done |
+| 3.2 | **Self-assessment stap VOOR automatische feedback** | Docent | Reflectievaardigheid | Done |
+| 3.3 | **Visuele feedbacksamenvatting** (tabel of score per techniek-element) | Student + Docent | Overzichtelijker | Done |
+| 3.4 | **Rubrics per leerdoel** toevoegen aan kennisbank | Docent | Studenten weten waarop ze beoordeeld worden | Done |
+| 3.5 | **"Vrije oefening" aanpassen** - basis LSD altijd meegeven | Docent | Altijd feedback op basisvaardigheden | Done |
+| 3.6 | **Feedback-layout fixen** (CSS bug: column vs. row op groot scherm) | Coder | UI-bug | Done |
 
 ---
 
-## Fase 4: Code-architectuur (MIDDEN) - TODO
+## Fase 4: Code-architectuur (MIDDEN) - AFGEROND
 
 *Maakt de codebase onderhoudbaar en uitbreidbaar*
 
-| # | Actie | Bron | Impact |
-|---|---|---|---|
-| 4.1 | **`main.ts` opsplitsen** in modules: types, config, api, speech, chat, ui | Coder | Onderhoudbaarheid |
-| 4.2 | **State centraliseren** in een state-object met setState/getState | Coder | Debugbaarheid, race conditions |
-| 4.3 | **ESLint + Prettier configureren** | Coder | Code-consistentie |
-| 4.4 | **Server naar TypeScript migreren** | Coder | Type-safety hele stack |
-| 4.5 | **Foutmeldingen generiek maken** (geen error.message naar client) | Coder | Security |
-| 4.6 | **Dubbele font-import verwijderen** | Coder | Performance |
-| 4.7 | **Opruimen** - counter.ts, prompt-v1-backup.ts, package hernoemen | Coder | Schone codebase |
+| # | Actie | Bron | Impact | Status |
+|---|---|---|---|---|
+| 4.1 | **`main.ts` opsplitsen** in modules: types, config, state, api, speech, chat, ui | Coder | Onderhoudbaarheid | Done |
+| 4.2 | **State centraliseren** in een state-object met setState/getState | Coder | Debugbaarheid, race conditions | Done |
+| 4.3 | **ESLint + Prettier configureren** | Coder | Code-consistentie | Done |
+| 4.4 | **Server naar TypeScript migreren** | Coder | Type-safety hele stack | Done |
+| 4.5 | **Foutmeldingen generiek maken** (geen error.message naar client) | Coder | Security | Done |
+| 4.6 | **Dubbele font-import verwijderen** | Coder | Performance | Done |
+| 4.7 | **Opruimen** - counter.ts, prompt-v1-backup.ts, package hernoemen | Coder | Schone codebase | Done |
 
 ---
 
@@ -117,7 +117,7 @@
 
 1. ~~**Fase 1** (beveiliging) - essentieel voor productiegebruik~~ AFGEROND
 2. ~~**Fase 2** (onboarding) - vergroot direct de bruikbaarheid~~ AFGEROND
-3. **Fase 3 + 4 samen** - feedback-export en code-opsplitsing in dezelfde sprint
+3. ~~**Fase 3 + 4 samen** - feedback-export en code-opsplitsing in dezelfde sprint~~ AFGEROND
 4. **Fase 5 + 6** - planmatig uitbreiden op basis van gebruikersfeedback
 
 ## Bronverdeling

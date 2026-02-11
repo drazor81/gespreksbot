@@ -32,7 +32,13 @@
       "Bash(move:*)",
       "Bash(netstat:*)",
       "Bash(tasklist:*)",
-      "Bash(wmic:*)"
+      "Bash(wmic:*)",
+      "Skill(code-review:code-review)",
+      "Bash(where:*)",
+      "Bash(ls -la \"C:\\\\Obsidian vault\\\\Gespreksbot\\\\docs\"\" 2>/dev/null || echo \"docs directory not found \")",
+      "Bash(npx eslint:*)",
+      "Bash(npx prettier --check \"src/**/*.ts\")",
+      "Bash(npx prettier:*)"
     ]
   }
 }
