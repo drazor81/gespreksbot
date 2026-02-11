@@ -25,7 +25,11 @@
       "Bash(python:*)",
       "Bash(grep:*)",
       "WebFetch(domain:gespreksbot.vercel.app)",
-      "Bash(VITE_API_URL=\"https://gespreksbot-server.onrender.com/api/chat\" npx vite build:*)"
+      "Bash(VITE_API_URL=\"https://gespreksbot-server.onrender.com/api/chat\" npx vite build:*)",
+      "Bash(xxd:*)",
+      "Bash(python3:*)",
+      "Bash(powershell:*)",
+      "Bash(move:*)"
     ]
   }
 }

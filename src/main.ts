@@ -1301,7 +1301,7 @@ Voorbeeld output:
     }
   } catch (error) {
     removeTypingIndicators();
-    addMessage('Systeem', 'Kan geen verbinding maken met de AI-server.', 'system');
+    addMessage('Systeem', 'Er is een probleem met de verbinding. Probeer het later opnieuw of neem contact op met je docent.', 'system');
   }
 }
 
