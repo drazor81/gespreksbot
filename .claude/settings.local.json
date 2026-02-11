@@ -29,7 +29,10 @@
       "Bash(xxd:*)",
       "Bash(python3:*)",
       "Bash(powershell:*)",
-      "Bash(move:*)"
+      "Bash(move:*)",
+      "Bash(netstat:*)",
+      "Bash(tasklist:*)",
+      "Bash(wmic:*)"
     ]
   }
 }
