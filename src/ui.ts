@@ -20,6 +20,7 @@ import {
   printFeedback
 } from './chat';
 import { startLiveConversation, stopLiveConversation } from './speech';
+import { openVoiceOverlay, isWebSpeechSupported } from './voice';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -959,6 +960,16 @@ export function initUI() {
     state.speechMode = toggle.checked;
     toggle.setAttribute('aria-checked', String(state.speechMode));
 
+    if (state.speechMode && isWebSpeechSupported()) {
+      // Use new voice overlay for browsers with Web Speech API
+      toggle.checked = false;
+      state.speechMode = false;
+      toggle.setAttribute('aria-checked', 'false');
+      openVoiceOverlay();
+      return;
+    }
+
+    // Fallback to old speech input for unsupported browsers
     const inputForm = document.querySelector('#input-form') as HTMLElement;
     const speechInput = document.querySelector('#speech-input') as HTMLElement;
     if (state.speechMode) {

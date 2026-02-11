@@ -120,38 +120,16 @@ Voorbeeld output:
 *Kijkt op vanuit de stoel* Goedemorgen... ben ik eindelijk aan de beurt?`;
   }
 
-  try {
-    if (!state.cachedSystemPrompt) {
-      const promptModule = await import('./prompts/system-prompt');
-      state.cachedSystemPrompt = promptModule.SYSTEM_PROMPT_MBO_V2;
-    }
-  } catch (error) {
-    console.error('Failed to load system prompt:', error);
+  if (!(await ensureSystemPromptLoaded())) {
     addMessage('Systeem', 'Fout: Kon de systeem-prompt niet laden.', 'system');
     return;
   }
-
-  const clientInstructies = getClientInstructies(state.selectedSettings.leerdoelen);
 
   if (state.currentRequestController) state.currentRequestController.abort();
   state.currentRequestController = new AbortController();
 
   try {
-    const systemPrompt =
-      state.cachedSystemPrompt
-        .replace('{{SETTING}}', state.selectedSettings.setting)
-        .replace('{{SCENARIO_TYPE}}', state.selectedSettings.scenarioType)
-        .replace('{{LEERDOELEN}}', state.selectedSettings.leerdoelen.join(', '))
-        .replace(
-          '{{MOEILIJKHEID_BESCHRIJVING}}',
-          state.isCollegaMode
-            ? MOEILIJKHEID_COLLEGA[state.selectedSettings.moeilijkheid] || MOEILIJKHEID_COLLEGA['Gemiddeld']
-            : MOEILIJKHEID_BESCHRIJVING[state.selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld']
-        )
-        .replace('{{ARCHETYPE_BESCHRIJVING}}', state.currentArchetypeBeschrijving)
-        .replace('{{PATIENT_NAME}}', placeholderName)
-        .replace('{{ROLTYPE_CONTEXT}}', state.isCollegaMode ? getCollegaContext(state.selectedSettings.setting) : '') +
-      clientInstructies;
+    const systemPrompt = buildDynamicSystemPrompt();
 
     const data = await sendChatMessage(
       systemPrompt,
@@ -283,28 +261,25 @@ export function handleSendMessage() {
   });
 }
 
-export async function generateResponseAndReturn(): Promise<string | null> {
-  if (!state.currentScenario) {
-    state.currentScenario = scenarios[0];
-  }
-
-  const persona = state.currentScenario.persona;
-  const clientInstructies = getClientInstructies(state.selectedSettings.leerdoelen);
-
+export async function ensureSystemPromptLoaded(): Promise<boolean> {
   if (!state.cachedSystemPrompt) {
     try {
       const promptModule = await import('./prompts/system-prompt');
       state.cachedSystemPrompt = promptModule.SYSTEM_PROMPT_MBO_V2;
     } catch (error) {
       console.error('Failed to load system prompt:', error);
-      addMessage('Systeem', 'Fout: Kon de systeem-prompt niet laden.', 'system');
-      return null;
+      return false;
     }
   }
+  return true;
+}
 
-  const dynamicPrompt =
-    state.cachedSystemPrompt
-      .replace('{{SETTING}}', state.selectedSettings.setting)
+export function buildDynamicSystemPrompt(): string {
+  const persona = state.currentScenario?.persona;
+  const clientInstructies = getClientInstructies(state.selectedSettings.leerdoelen);
+  return (
+    state
+      .cachedSystemPrompt!.replace('{{SETTING}}', state.selectedSettings.setting)
       .replace('{{SCENARIO_TYPE}}', state.selectedSettings.scenarioType)
       .replace('{{LEERDOELEN}}', state.selectedSettings.leerdoelen.join(', '))
       .replace(
@@ -314,9 +289,25 @@ export async function generateResponseAndReturn(): Promise<string | null> {
           : MOEILIJKHEID_BESCHRIJVING[state.selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld']
       )
       .replace('{{ARCHETYPE_BESCHRIJVING}}', state.currentArchetypeBeschrijving)
-      .replace('{{PATIENT_NAME}}', persona.name)
+      .replace('{{PATIENT_NAME}}', persona?.name || (state.isCollegaMode ? 'Collega' : 'Client'))
       .replace('{{ROLTYPE_CONTEXT}}', state.isCollegaMode ? getCollegaContext(state.selectedSettings.setting) : '') +
-    clientInstructies;
+    clientInstructies
+  );
+}
+
+export async function generateResponseAndReturn(): Promise<string | null> {
+  if (!state.currentScenario) {
+    state.currentScenario = scenarios[0];
+  }
+
+  const persona = state.currentScenario.persona;
+
+  if (!(await ensureSystemPromptLoaded())) {
+    addMessage('Systeem', 'Fout: Kon de systeem-prompt niet laden.', 'system');
+    return null;
+  }
+
+  const dynamicPrompt = buildDynamicSystemPrompt();
 
   if (state.currentRequestController) state.currentRequestController.abort();
   state.currentRequestController = new AbortController();

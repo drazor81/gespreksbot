@@ -70,48 +70,55 @@ interface ChatMessage {
   content: string;
 }
 
+function validateChatInput(
+  body: { messages?: ChatMessage[]; systemPrompt?: string },
+  res: Response
+): { messages: ChatMessage[]; systemPrompt: string } | null {
+  const { messages, systemPrompt } = body;
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    res.status(500).json({ error: 'ANTHROPIC_API_KEY is not configured.' });
+    return null;
+  }
+  if (!systemPrompt || typeof systemPrompt !== 'string') {
+    res.status(400).json({ error: 'Ongeldig verzoek: systemPrompt ontbreekt.' });
+    return null;
+  }
+  if (!Array.isArray(messages) || messages.length === 0) {
+    res.status(400).json({ error: 'Ongeldig verzoek: messages ontbreekt.' });
+    return null;
+  }
+  if (messages.length > 100) {
+    res.status(400).json({ error: 'Ongeldig verzoek: te veel berichten.' });
+    return null;
+  }
+  for (const msg of messages) {
+    if (!msg.role || !['user', 'assistant'].includes(msg.role)) {
+      res.status(400).json({ error: 'Ongeldig verzoek: ongeldige message role.' });
+      return null;
+    }
+    if (typeof msg.content !== 'string' || msg.content.length > 10000) {
+      res.status(400).json({ error: 'Ongeldig verzoek: bericht te lang of ongeldig.' });
+      return null;
+    }
+  }
+  if (systemPrompt.length > 50000) {
+    res.status(400).json({ error: 'Ongeldig verzoek: systemPrompt te lang.' });
+    return null;
+  }
+  return { messages, systemPrompt };
+}
+
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
-    const { messages, systemPrompt } = req.body as { messages: ChatMessage[]; systemPrompt: string };
-
-    if (!process.env.ANTHROPIC_API_KEY) {
-      res.status(500).json({ error: 'ANTHROPIC_API_KEY is not configured.' });
-      return;
-    }
-
-    // Input validatie
-    if (!systemPrompt || typeof systemPrompt !== 'string') {
-      res.status(400).json({ error: 'Ongeldig verzoek: systemPrompt ontbreekt.' });
-      return;
-    }
-    if (!Array.isArray(messages) || messages.length === 0) {
-      res.status(400).json({ error: 'Ongeldig verzoek: messages ontbreekt.' });
-      return;
-    }
-    if (messages.length > 100) {
-      res.status(400).json({ error: 'Ongeldig verzoek: te veel berichten.' });
-      return;
-    }
-    for (const msg of messages) {
-      if (!msg.role || !['user', 'assistant'].includes(msg.role)) {
-        res.status(400).json({ error: 'Ongeldig verzoek: ongeldige message role.' });
-        return;
-      }
-      if (typeof msg.content !== 'string' || msg.content.length > 10000) {
-        res.status(400).json({ error: 'Ongeldig verzoek: bericht te lang of ongeldig.' });
-        return;
-      }
-    }
-    if (systemPrompt.length > 50000) {
-      res.status(400).json({ error: 'Ongeldig verzoek: systemPrompt te lang.' });
-      return;
-    }
+    const input = validateChatInput(req.body, res);
+    if (!input) return;
 
     const response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: 1024,
-      system: systemPrompt,
-      messages: messages.map((m) => ({
+      system: input.systemPrompt,
+      messages: input.messages.map((m) => ({
         role: m.role,
         content: m.content
       }))
@@ -122,6 +129,64 @@ app.post('/api/chat', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Anthropic API error:', error);
     res.status(500).json({ error: 'Er ging iets mis met de AI. Probeer het opnieuw.' });
+  }
+});
+
+// Streaming chat endpoint (SSE) for voice mode
+app.post('/api/chat/stream', async (req: Request, res: Response) => {
+  try {
+    const input = validateChatInput(req.body, res);
+    if (!input) return;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    let aborted = false;
+    req.on('close', () => {
+      aborted = true;
+    });
+
+    const stream = anthropic.messages.stream({
+      model: MODEL,
+      max_tokens: 1024,
+      system: input.systemPrompt,
+      messages: input.messages.map((m) => ({
+        role: m.role,
+        content: m.content
+      }))
+    });
+
+    let fullText = '';
+
+    stream.on('text', (text) => {
+      if (aborted) return;
+      fullText += text;
+      res.write(`data: ${JSON.stringify({ delta: text })}\n\n`);
+    });
+
+    stream.on('error', (error) => {
+      console.error('Anthropic stream error:', error);
+      if (!aborted) {
+        res.write(`data: ${JSON.stringify({ error: 'Er ging iets mis met de AI.' })}\n\n`);
+        res.end();
+      }
+    });
+
+    await stream.finalMessage();
+
+    if (!aborted) {
+      res.write(`data: ${JSON.stringify({ done: true, fullText })}\n\n`);
+      res.end();
+    }
+  } catch (error) {
+    console.error('Anthropic stream error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Er ging iets mis met de AI. Probeer het opnieuw.' });
+    } else {
+      res.end();
+    }
   }
 });
 

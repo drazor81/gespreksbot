@@ -24,6 +24,11 @@ export interface AppState {
   emptyTranscriptCount: number;
   isCollegaMode: boolean;
   currentArchetypeBeschrijving: string;
+  // Voice overlay state
+  voiceOverlayActive: boolean;
+  voiceStatus: 'idle' | 'listening' | 'processing' | 'speaking';
+  currentVoiceAudio: HTMLAudioElement | null;
+  voiceStreamController: AbortController | null;
 }
 
 function createInitialState(): AppState {
@@ -57,7 +62,11 @@ function createInitialState(): AppState {
     },
     emptyTranscriptCount: 0,
     isCollegaMode: false,
-    currentArchetypeBeschrijving: ''
+    currentArchetypeBeschrijving: '',
+    voiceOverlayActive: false,
+    voiceStatus: 'idle',
+    currentVoiceAudio: null,
+    voiceStreamController: null
   };
 }
 
