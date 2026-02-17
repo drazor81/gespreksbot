@@ -296,16 +296,16 @@ function buildLeerdoelSelectionHtml() {
       <div class="leerdoel-group-title">${group.title}</div>
       <div class="leerdoel-chips">
         ${group.items
-          .map(
-            (leerdoel) => `
+        .map(
+          (leerdoel) => `
           <label class="leerdoel-chip">
             <input type="checkbox" name="leerdoel" value="${leerdoel}" ${leerdoel === 'LSD' ? 'checked' : ''}>
             <span class="leerdoel-chip-name">${leerdoel}</span>
             <span class="leerdoel-chip-desc">${getKorteUitleg(leerdoel)}</span>
           </label>
         `
-          )
-          .join('')}
+        )
+        .join('')}
       </div>
     </div>
   `
@@ -612,7 +612,8 @@ export function updateSettings() {
 export function initUI() {
   app.innerHTML = `
     <header>
-      <h1>Gespreksbot Zorg (MBO 4)</h1>
+      <h1>ZorgGesprek+</h1>
+      <p class="header-tagline">De gesprekstrainer voor MBO-zorgstudenten</p>
       <div class="header-actions">
         <button type="button" id="help-btn" class="help-btn" aria-label="Open hulp">?</button>
         <button type="button" id="reset-btn">Reset</button>

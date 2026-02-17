@@ -1,4 +1,4 @@
-# Verbeterplan Gespreksbot Zorg - UI/UX Review
+# Verbeterplan ZorgGesprek+ - UI/UX Review
 
 **Datum:** 9 februari 2026
 **Beoordeeld door:** Docent (15 jaar MBO Verpleegkunde), MBO-4 Student, UX-Designer (10 jaar educatieve software)
@@ -8,7 +8,7 @@
 
 ## Samenvatting
 
-De Gespreksbot Zorg is vakinhoudelijk sterk (uitgebreide kennisbank, rubrics, zelfbeoordeling, spraakfunctie) maar heeft UI/UX-verbeteringen nodig om effectief inzetbaar te zijn in MBO-lessen. De belangrijkste blokkades zijn: accessibility-tekorten, ontbrekende export/opslaan-functionaliteit, en een verwarrende setup-flow.
+ZorgGesprek+ is vakinhoudelijk sterk (uitgebreide kennisbank, rubrics, zelfbeoordeling, spraakfunctie) maar heeft UI/UX-verbeteringen nodig om effectief inzetbaar te zijn in MBO-lessen. De belangrijkste blokkades zijn: accessibility-tekorten, ontbrekende export/opslaan-functionaliteit, en een verwarrende setup-flow.
 
 ---
 

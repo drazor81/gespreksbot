@@ -110,7 +110,7 @@ export const MOEILIJKHEID_COLLEGA: Record<string, string> = {
 
 export const RECOMMENDED_MIN_TURNS = 6;
 export const TARGET_TURNS = 8;
-export const DASHBOARD_STORAGE_KEY = 'gespreksbot-docent-dashboard-v1';
+export const DASHBOARD_STORAGE_KEY = 'zorggesprek-docent-dashboard-v1';
 export const MAX_EMPTY_RETRIES = 3;
 
 export function getCollegaContext(setting: string): string {

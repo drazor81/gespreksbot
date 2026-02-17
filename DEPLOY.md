@@ -1,4 +1,4 @@
-# Handleiding: Gespreksbot Online Zetten
+# Handleiding: ZorgGesprek+ Online Zetten
 
 Je hebt een applicatie die uit twee delen bestaat: een **Server** (backend) en een **Website** (frontend). Je moet ze allebei online zetten. Hieronder de makkelijkste (vaak gratis) manier.
 
@@ -18,7 +18,7 @@ De server is nodig om veilig met Claude (AI) te praten.
     *   Key: `ANTHROPIC_API_KEY`
     *   Value: `sk-ant-...` (Je echte API sleutel die nu in je `.env` bestand staat).
 7.  Klik op **Create Web Service**.
-8.  Wacht tot hij klaar is. Je krijgt nu een URL (bijv. `https://gespreksbot-server.onrender.com`). **Kopieer deze URL.**
+8.  Wacht tot hij klaar is. Je krijgt nu een URL (bijv. `https://zorggesprek-server.onrender.com`). **Kopieer deze URL.**
 
 ## Stap 2: De Website Online Zetten (via Vercel)
 Nu zetten we de voorkant online en koppelen we deze aan je nieuwe server.
@@ -29,7 +29,7 @@ Nu zetten we de voorkant online en koppelen we deze aan je nieuwe server.
 4.  Bij **Framework Preset** kies je `Vite`.
 5.  Bij **Environment Variables** voeg je toe:
     *   Key: `VITE_API_URL`
-    *   Value: `https://gespreksbot-server.onrender.com/api/chat` (Plak hier de URL van Stap 1 en plak er `/api/chat` achter!).
+    *   Value: `https://zorggesprek-server.onrender.com/api/chat` (Plak hier de URL van Stap 1 en plak er `/api/chat` achter!).
 6.  Klik op **Deploy**.
 
 ## Stap 3: Klaar!

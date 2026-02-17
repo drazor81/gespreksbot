@@ -1,4 +1,4 @@
-# Gezamenlijk Verbeterplan: Gespreksbot Zorg
+# Gezamenlijk Verbeterplan: ZorgGesprek+
 
 *Samengesteld op basis van drie perspectieven: Student, Docent en Expert Coder*
 
