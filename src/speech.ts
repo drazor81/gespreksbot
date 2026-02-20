@@ -4,7 +4,7 @@ import { speechToText, textToSpeech } from './api';
 import { addMessage, addTypingIndicator, updateChatSessionMeta } from './ui';
 import { generateResponseAndReturn } from './chat';
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<'listening' | 'processing' | 'speaking', string> = {
   listening: 'Luistert...',
   processing: 'Verwerkt...',
   speaking: 'Spreekt...'
