@@ -32,7 +32,22 @@ import {
 import { getClientInstructies, getCoachContext, getRubricContext, getKennisVoorLeerdoelen } from './knowledge';
 import { stopLiveConversation } from './speech';
 
-export async function startScenarioFromSettings() {
+function getPersonaLabel(): string {
+  const rolLabel = state.isCollegaMode ? 'Collega' : 'Cliënt';
+  const name = state.currentScenario?.persona.name || (state.isCollegaMode ? 'de collega' : 'de cliënt');
+  return `${rolLabel} (${name})`;
+}
+
+function buildTranscript(): string {
+  return state.conversationHistory
+    .map((msg) => {
+      const speaker = msg.role === 'user' ? 'Student' : getPersonaLabel();
+      return `${speaker}: ${msg.content}`;
+    })
+    .join('\n\n');
+}
+
+export async function startScenarioFromSettings(): Promise<void> {
   const placeholderName = state.isCollegaMode ? 'De collega' : 'De cliënt';
 
   state.currentScenario = {
@@ -171,7 +186,7 @@ Voorbeeld output:
   }
 }
 
-export function startScenario(id: string) {
+export function startScenario(id: string): void {
   const preset = scenarios.find((s) => s.id === id) || null;
   if (!preset) return;
 
@@ -235,7 +250,7 @@ export function startScenario(id: string) {
   document.querySelector('.settings-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-export function handleSendMessage() {
+export function handleSendMessage(): void {
   if (state.isWaitingForResponse) return;
   if (state.conversationClosed) return;
   const input = document.querySelector<HTMLInputElement>('#user-input')!;
@@ -343,11 +358,11 @@ export async function generateResponseAndReturn(): Promise<string | null> {
   }
 }
 
-async function generateResponse() {
+async function generateResponse(): Promise<void> {
   await generateResponseAndReturn();
 }
 
-export async function getHint() {
+export async function getHint(): Promise<void> {
   const hintBtn = document.querySelector('#hint-btn') as HTMLButtonElement;
   if (hintBtn) hintBtn.disabled = true;
 
@@ -365,16 +380,7 @@ export async function getHint() {
 
   addTypingIndicator('Coach', 'meta');
 
-  const transcript = state.conversationHistory
-    .map((msg) => {
-      const speaker =
-        msg.role === 'user'
-          ? 'Student'
-          : `${state.isCollegaMode ? 'Collega' : 'Cliënt'} (${state.currentScenario?.persona.name || (state.isCollegaMode ? 'de collega' : 'de cliënt')})`;
-      return `${speaker}: ${msg.content}`;
-    })
-    .join('\n\n');
-
+  const transcript = buildTranscript();
   const coachKennis = getCoachContext(state.selectedSettings.leerdoelen);
 
   const coachSystemPrompt = `Je bent een ervaren praktijkbegeleider die MBO-zorgstudenten coacht tijdens gespreksoefeningen. Je observeert het gesprek en geeft korte, behulpzame tips.
@@ -413,7 +419,7 @@ Analyseer het gesprek op basis van je kennis over de gesprekstechnieken hierbove
   }
 }
 
-export async function endConversation() {
+export async function endConversation(): Promise<void> {
   if (state.isWaitingForResponse || state.conversationClosed) return;
   if (state.liveConversationActive) stopLiveConversation();
 
@@ -486,21 +492,12 @@ function buildSelfAssessmentContext(): string {
   return entries.map(([leerdoel, score]) => `- ${leerdoel}: ${labelMap[score] || score}`).join('\n');
 }
 
-async function generateAIFeedback() {
+async function generateAIFeedback(): Promise<void> {
   const feedbackContent = document.querySelector('#feedback-content')!;
   const summaryHtml = buildSelfAssessmentSummary();
   feedbackContent.innerHTML = summaryHtml + '<p class="feedback-loading">Feedback wordt gegenereerd...</p>';
 
-  const transcript = state.conversationHistory
-    .map((msg) => {
-      const speaker =
-        msg.role === 'user'
-          ? 'Student'
-          : `${state.isCollegaMode ? 'Collega' : 'Cliënt'} (${state.currentScenario?.persona.name || (state.isCollegaMode ? 'de collega' : 'de cliënt')})`;
-      return `${speaker}: ${msg.content}`;
-    })
-    .join('\n\n');
-
+  const transcript = buildTranscript();
   const coachKennis = getCoachContext(state.selectedSettings.leerdoelen);
   const rubricKennis = getRubricContext(state.selectedSettings.leerdoelen);
   const selfAssessmentContext = buildSelfAssessmentContext();
@@ -557,7 +554,7 @@ Geef nu je feedback volgens de voorgeschreven structuur.`;
   }
 }
 
-export async function showFeedback() {
+export async function showFeedback(): Promise<void> {
   if (!state.conversationClosed) {
     addMessage('Systeem', 'Rond eerst het gesprek af met de knop "Rond gesprek af".', 'system');
     return;
@@ -624,7 +621,7 @@ export async function showFeedback() {
   }
 }
 
-export function copyFeedback() {
+export function copyFeedback(): void {
   const el = document.querySelector('#feedback-content');
   if (!el) return;
   navigator.clipboard.writeText((el as HTMLElement).innerText).then(() => {
@@ -640,7 +637,7 @@ export function copyFeedback() {
   });
 }
 
-export function printFeedback() {
+export function printFeedback(): void {
   renderFeedbackExportSummary();
   window.print();
 }

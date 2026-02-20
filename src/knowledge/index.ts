@@ -1,4 +1,3 @@
-// Kennisbank voor gesprekstechnieken
 import lsd from './lsd.json';
 import omaAnna from './oma-anna.json';
 import nivea from './nivea.json';
@@ -32,7 +31,6 @@ export interface Kennisitem {
   rubric?: RubricCriterium[];
 }
 
-// Map van leerdoel-ID naar kennisitem
 const kennisbank: Record<string, Kennisitem> = {
   LSD: lsd,
   'OMA/ANNA': omaAnna,
@@ -53,11 +51,9 @@ export function getKorteUitleg(id: string): string {
   return item ? item.korteUitleg : '';
 }
 
-// Haal kennis op voor geselecteerde leerdoelen
 export function getKennisVoorLeerdoelen(leerdoelen: string[]): Kennisitem[] {
   const specifiek = leerdoelen.filter((ld) => ld !== 'Vrije oefening' && kennisbank[ld]).map((ld) => kennisbank[ld]);
 
-  // Bij alleen "Vrije oefening": geef LSD als basistechniek mee
   if (specifiek.length === 0 && leerdoelen.includes('Vrije oefening')) {
     return [kennisbank['LSD']];
   }
@@ -65,7 +61,6 @@ export function getKennisVoorLeerdoelen(leerdoelen: string[]): Kennisitem[] {
   return specifiek;
 }
 
-// Genereer instructies voor de cliënt op basis van leerdoelen
 export function getClientInstructies(leerdoelen: string[]): string {
   const kennis = getKennisVoorLeerdoelen(leerdoelen);
   if (kennis.length === 0) return '';
@@ -87,7 +82,6 @@ ${instructies}
 `;
 }
 
-// Genereer rubric context voor feedback prompt
 export function getRubricContext(leerdoelen: string[]): string {
   const kennis = getKennisVoorLeerdoelen(leerdoelen);
   if (kennis.length === 0) return '';
@@ -104,12 +98,11 @@ export function getRubricContext(leerdoelen: string[]): string {
     .join('\n\n');
 }
 
-// Genereer context voor de coach op basis van leerdoelen
 export function getCoachContext(leerdoelen: string[]): string {
   const kennis = getKennisVoorLeerdoelen(leerdoelen);
   if (kennis.length === 0) return '';
 
-  const context = kennis
+  return kennis
     .map((k) => {
       return `**${k.naam}:**
 ${k.korteUitleg}
@@ -124,11 +117,8 @@ Voorbeelden van FOUT:
 ${k.voorbeeldenFout.map((v) => `- ${v}`).join('\n')}`;
     })
     .join('\n\n---\n\n');
-
-  return context;
 }
 
-// Haal theorie op voor geselecteerde leerdoelen (voor student weergave)
 export function getTheorieVoorStudent(leerdoelen: string[]): string {
   const kennis = getKennisVoorLeerdoelen(leerdoelen);
   if (kennis.length === 0) return 'Geen theorie beschikbaar voor de geselecteerde leerdoelen.';

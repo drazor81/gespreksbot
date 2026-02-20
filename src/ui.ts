@@ -24,6 +24,22 @@ import { openVoiceOverlay, isWebSpeechSupported } from './voice';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
+function showModal(id: string): void {
+  const modal = document.querySelector(`#${id}`) as HTMLDivElement | null;
+  if (modal) modal.style.display = 'flex';
+}
+
+function hideModal(id: string): void {
+  const modal = document.querySelector(`#${id}`) as HTMLDivElement | null;
+  if (modal) modal.style.display = 'none';
+}
+
+function wireModalCloseOnOverlayClick(modalId: string): void {
+  document.querySelector(`#${modalId}`)?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).id === modalId) hideModal(modalId);
+  });
+}
+
 export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -33,17 +49,17 @@ export function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
-export function setInlineError(id: string, message: string) {
+export function setInlineError(id: string, message: string): void {
   const el = document.querySelector(`#${id}`) as HTMLElement | null;
   if (!el) return;
   el.textContent = message;
 }
 
-export function clearInlineError(id: string) {
+export function clearInlineError(id: string): void {
   setInlineError(id, '');
 }
 
-export function showToast(message: string, variant: 'info' | 'success' | 'error' = 'info') {
+export function showToast(message: string, variant: 'info' | 'success' | 'error' = 'info'): void {
   const container = document.querySelector('#toast-container') as HTMLDivElement | null;
   if (!container) return;
 
@@ -58,7 +74,7 @@ export function showToast(message: string, variant: 'info' | 'success' | 'error'
   }, 2200);
 }
 
-export function addTypingIndicator(sender: string, type: 'patient' | 'system' | 'meta' = 'patient') {
+export function addTypingIndicator(sender: string, type: 'patient' | 'system' | 'meta' = 'patient'): void {
   const container = document.querySelector('#chat-container') as HTMLDivElement | null;
   if (!container) return;
 
@@ -81,11 +97,11 @@ export function addTypingIndicator(sender: string, type: 'patient' | 'system' | 
   container.scrollTop = container.scrollHeight;
 }
 
-export function removeTypingIndicators() {
+export function removeTypingIndicators(): void {
   document.querySelectorAll('[data-typing="true"]').forEach((el) => el.remove());
 }
 
-export function addMessage(sender: string, text: string, type: 'student' | 'patient' | 'system' | 'meta') {
+export function addMessage(sender: string, text: string, type: 'student' | 'patient' | 'system' | 'meta'): void {
   const container = document.querySelector('#chat-container')!;
   const msgDiv = document.createElement('div');
   msgDiv.className = `message ${type}`;
@@ -207,11 +223,11 @@ export function loadDashboardSessions(): DashboardSession[] {
   }
 }
 
-export function saveDashboardSessions(sessions: DashboardSession[]) {
+export function saveDashboardSessions(sessions: DashboardSession[]): void {
   localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(sessions.slice(0, 120)));
 }
 
-export function saveCurrentSessionToDashboard() {
+export function saveCurrentSessionToDashboard(): void {
   if (state.dashboardSavedForConversation) return;
   if (!state.conversationStartedAt) return;
   const session: DashboardSession = {
@@ -232,7 +248,7 @@ export function saveCurrentSessionToDashboard() {
   state.dashboardSavedForConversation = true;
 }
 
-export function renderDashboard() {
+export function renderDashboard(): void {
   const content = document.querySelector('#dashboard-content') as HTMLDivElement | null;
   if (!content) return;
 
@@ -289,7 +305,7 @@ export function renderDashboard() {
   `;
 }
 
-function buildLeerdoelSelectionHtml() {
+function buildLeerdoelSelectionHtml(): string {
   return LEERDOEL_GROUPS.map(
     (group) => `
     <div class="leerdoel-group">
@@ -312,12 +328,12 @@ function buildLeerdoelSelectionHtml() {
   ).join('');
 }
 
-export function setAppMode(mode: 'setup' | 'chat' | 'feedback') {
+export function setAppMode(mode: 'setup' | 'chat' | 'feedback'): void {
   app.classList.remove('setup-mode', 'chat-mode', 'feedback-mode');
   app.classList.add(`${mode}-mode`);
 }
 
-export function animateScreenEntry(selector: string) {
+export function animateScreenEntry(selector: string): void {
   const element = document.querySelector(selector) as HTMLElement | null;
   if (!element) return;
   element.classList.remove('screen-enter');
@@ -325,7 +341,7 @@ export function animateScreenEntry(selector: string) {
   element.classList.add('screen-enter');
 }
 
-export function setFeedbackTab(tab: 'gesprek' | 'feedback') {
+export function setFeedbackTab(tab: 'gesprek' | 'feedback'): void {
   const feedbackScreen = document.querySelector('#feedback-screen') as HTMLDivElement | null;
   const gesprekTab = document.querySelector('#feedback-tab-gesprek') as HTMLButtonElement | null;
   const feedbackTab = document.querySelector('#feedback-tab-feedback') as HTMLButtonElement | null;
@@ -341,7 +357,7 @@ export function setFeedbackTab(tab: 'gesprek' | 'feedback') {
   feedbackTab.setAttribute('aria-selected', String(tab === 'feedback'));
 }
 
-export function setChecklistPanelVisibility(visible: boolean) {
+export function setChecklistPanelVisibility(visible: boolean): void {
   const panel = document.querySelector('#checklist-panel') as HTMLDivElement | null;
   const checklistBtn = document.querySelector('#checklist-btn') as HTMLButtonElement | null;
   if (!panel || !checklistBtn) return;
@@ -351,7 +367,7 @@ export function setChecklistPanelVisibility(visible: boolean) {
   checklistBtn.setAttribute('aria-expanded', String(visible));
 }
 
-export function getScenarioLabelForUi() {
+export function getScenarioLabelForUi(): string {
   if (state.currentScenario && state.currentScenario.id !== 'dynamic') {
     return state.currentScenario.name;
   }
@@ -361,11 +377,11 @@ export function getScenarioLabelForUi() {
   return state.selectedSettings.scenarioType;
 }
 
-export function getStudentTurnCount() {
+export function getStudentTurnCount(): number {
   return state.conversationHistory.filter((msg) => msg.role === 'user').length;
 }
 
-export function updateConversationActionButtons() {
+export function updateConversationActionButtons(): void {
   const endButton = document.querySelector('#end-conversation-btn') as HTMLButtonElement | null;
   const feedbackButton = document.querySelector('#feedback-btn') as HTMLButtonElement | null;
   if (!endButton || !feedbackButton) return;
@@ -386,7 +402,7 @@ export function updateConversationActionButtons() {
   }
 }
 
-export function updateChatSessionMeta() {
+export function updateChatSessionMeta(): void {
   const meta = document.querySelector('#chat-session-meta') as HTMLDivElement | null;
   const chatContainer = document.querySelector('#chat-container') as HTMLDivElement | null;
   const contextBar = document.querySelector('#chat-context-bar') as HTMLDivElement | null;
@@ -423,7 +439,7 @@ export function updateChatSessionMeta() {
   updateConversationActionButtons();
 }
 
-export function getFormattedDateTime(date: Date) {
+export function getFormattedDateTime(date: Date): string {
   return date.toLocaleString('nl-NL', {
     day: '2-digit',
     month: '2-digit',
@@ -433,7 +449,7 @@ export function getFormattedDateTime(date: Date) {
   });
 }
 
-export function renderFeedbackExportSummary() {
+export function renderFeedbackExportSummary(): void {
   const summary = document.querySelector('#feedback-export-summary') as HTMLDivElement | null;
   if (!summary) return;
 
@@ -454,7 +470,7 @@ export function renderFeedbackExportSummary() {
   `;
 }
 
-export function populateChecklist() {
+export function populateChecklist(): void {
   const body = document.querySelector('#checklist-body') as HTMLDivElement;
   if (!body) return;
   const kennis = getKennisVoorLeerdoelen(state.selectedSettings.leerdoelen);
@@ -474,9 +490,8 @@ export function populateChecklist() {
   body.innerHTML = html;
 }
 
-export function showTheory() {
+export function showTheory(): void {
   const theorie = getTheorieVoorStudent(state.selectedSettings.leerdoelen);
-  const modal = document.querySelector('#theory-modal') as HTMLDivElement;
   const content = document.querySelector('#theory-content') as HTMLDivElement;
 
   const htmlContent = theorie
@@ -491,12 +506,11 @@ export function showTheory() {
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
   content.innerHTML = sanitized;
-  modal.style.display = 'flex';
+  showModal('theory-modal');
 }
 
-export function closeTheory() {
-  const modal = document.querySelector('#theory-modal') as HTMLDivElement;
-  modal.style.display = 'none';
+export function closeTheory(): void {
+  hideModal('theory-modal');
 }
 
 export function showConfirmDialog(message: string): Promise<boolean> {
@@ -567,7 +581,7 @@ export function prepareChat() {
   updateChatSessionMeta();
 }
 
-export function updateStartButtonState() {
+export function updateStartButtonState(): void {
   const MAX_LEERDOELEN = 2;
   const startBtn = document.querySelector('#start-btn') as HTMLButtonElement;
   const countEl = document.querySelector('#leerdoel-count') as HTMLSpanElement | null;
@@ -590,7 +604,7 @@ export function updateStartButtonState() {
   }
 }
 
-export function updateSettings() {
+export function updateSettings(): void {
   const settingEl = document.querySelector('#setting-select') as HTMLSelectElement;
   const scenarioTypeEl = document.querySelector('#scenario-type-select') as HTMLSelectElement;
   const moeilijkheidEl = document.querySelector('#moeilijkheid-select') as HTMLSelectElement;
@@ -609,7 +623,7 @@ export function updateSettings() {
   state.selectedSettings.leerdoelen = Array.from(checkboxes).map((cb) => (cb as HTMLInputElement).value);
 }
 
-export function initUI() {
+export function initUI(): void {
   app.innerHTML = `
     <header>
       <h1>ZorgGesprek+</h1>
@@ -816,22 +830,9 @@ export function initUI() {
     startScenarioFromSettings();
   });
 
-  document.querySelector('#help-btn')?.addEventListener('click', () => {
-    const helpModal = document.querySelector('#help-modal') as HTMLDivElement | null;
-    if (helpModal) helpModal.style.display = 'flex';
-  });
-
-  document.querySelector('#close-help-btn')?.addEventListener('click', () => {
-    const helpModal = document.querySelector('#help-modal') as HTMLDivElement | null;
-    if (helpModal) helpModal.style.display = 'none';
-  });
-
-  document.querySelector('#help-modal')?.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).id === 'help-modal') {
-      const helpModal = document.querySelector('#help-modal') as HTMLDivElement | null;
-      if (helpModal) helpModal.style.display = 'none';
-    }
-  });
+  document.querySelector('#help-btn')?.addEventListener('click', () => showModal('help-modal'));
+  document.querySelector('#close-help-btn')?.addEventListener('click', () => hideModal('help-modal'));
+  wireModalCloseOnOverlayClick('help-modal');
 
   document.querySelector('#scenario-type-select')?.addEventListener('change', (e) => {
     const value = (e.target as HTMLSelectElement).value;
@@ -894,57 +895,26 @@ export function initUI() {
     handleSendMessage();
   });
 
-  document.querySelector('#hint-btn')?.addEventListener('click', () => {
-    getHint();
-  });
-  document.querySelector('#theory-btn')?.addEventListener('click', () => {
-    showTheory();
-  });
-  document.querySelector('#close-theory-btn')?.addEventListener('click', () => {
-    closeTheory();
-  });
+  document.querySelector('#hint-btn')?.addEventListener('click', getHint);
+  document.querySelector('#theory-btn')?.addEventListener('click', showTheory);
+  document.querySelector('#close-theory-btn')?.addEventListener('click', closeTheory);
+  wireModalCloseOnOverlayClick('theory-modal');
 
-  document.querySelector('#theory-modal')?.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).id === 'theory-modal') closeTheory();
-  });
-
-  document.querySelector('#end-conversation-btn')?.addEventListener('click', () => {
-    endConversation();
-  });
-  document.querySelector('#feedback-btn')?.addEventListener('click', () => {
-    showFeedback();
-  });
+  document.querySelector('#end-conversation-btn')?.addEventListener('click', endConversation);
+  document.querySelector('#feedback-btn')?.addEventListener('click', showFeedback);
   document.querySelector('#copy-feedback-btn')?.addEventListener('click', copyFeedback);
   document.querySelector('#export-feedback-btn')?.addEventListener('click', printFeedback);
 
   document.querySelector('#dashboard-btn')?.addEventListener('click', () => {
     renderDashboard();
-    const modal = document.querySelector('#dashboard-modal') as HTMLDivElement | null;
-    if (modal) modal.style.display = 'flex';
+    showModal('dashboard-modal');
   });
+  document.querySelector('#close-dashboard-btn')?.addEventListener('click', () => hideModal('dashboard-modal'));
+  wireModalCloseOnOverlayClick('dashboard-modal');
 
-  document.querySelector('#close-dashboard-btn')?.addEventListener('click', () => {
-    const modal = document.querySelector('#dashboard-modal') as HTMLDivElement | null;
-    if (modal) modal.style.display = 'none';
-  });
-
-  document.querySelector('#dashboard-modal')?.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).id === 'dashboard-modal') {
-      const modal = document.querySelector('#dashboard-modal') as HTMLDivElement | null;
-      if (modal) modal.style.display = 'none';
-    }
-  });
-
-  document.querySelector('#feedback-tab-gesprek')?.addEventListener('click', () => {
-    setFeedbackTab('gesprek');
-  });
-  document.querySelector('#feedback-tab-feedback')?.addEventListener('click', () => {
-    setFeedbackTab('feedback');
-  });
-
-  document.querySelector('#student-name-input')?.addEventListener('input', () => {
-    renderFeedbackExportSummary();
-  });
+  document.querySelector('#feedback-tab-gesprek')?.addEventListener('click', () => setFeedbackTab('gesprek'));
+  document.querySelector('#feedback-tab-feedback')?.addEventListener('click', () => setFeedbackTab('feedback'));
+  document.querySelector('#student-name-input')?.addEventListener('input', renderFeedbackExportSummary);
   document.querySelector('#new-conversation-btn')?.addEventListener('click', () => {
     location.reload();
   });

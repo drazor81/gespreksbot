@@ -42,12 +42,12 @@ export function isWebSpeechSupported(): boolean {
   return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
 }
 
-function setVoiceStatus(status: VoiceStatus) {
+function setVoiceStatus(status: VoiceStatus): void {
   state.voiceStatus = status;
   updateOverlayUI(status);
 }
 
-function updateOverlayUI(status: VoiceStatus) {
+function updateOverlayUI(status: VoiceStatus): void {
   if (!overlayEl) return;
 
   const orb = overlayEl.querySelector('.voice-orb') as HTMLElement;
@@ -76,7 +76,6 @@ function updateOverlayUI(status: VoiceStatus) {
       break;
   }
 
-  // Clear transcript on new listening cycle
   if (status === 'listening' && transcriptEl) {
     transcriptEl.textContent = '';
     transcriptEl.classList.remove('interim');
@@ -105,7 +104,7 @@ function createOverlayHTML(): string {
   `;
 }
 
-export function openVoiceOverlay() {
+export function openVoiceOverlay(): void {
   if (!isWebSpeechSupported()) {
     addMessage('Systeem', 'Spraakherkenning wordt niet ondersteund in deze browser. Gebruik Chrome of Edge.', 'system');
     return;
@@ -116,46 +115,38 @@ export function openVoiceOverlay() {
     return;
   }
 
-  // Insert overlay into DOM
   const container = document.createElement('div');
   container.innerHTML = createOverlayHTML();
   overlayEl = container.firstElementChild as HTMLElement;
   document.body.appendChild(overlayEl);
 
-  // Force reflow for animation
   void overlayEl.offsetHeight;
   overlayEl.classList.add('active');
 
   state.voiceOverlayActive = true;
 
-  // Wire up close/stop buttons
   overlayEl.querySelector('#voice-close-btn')?.addEventListener('click', closeVoiceOverlay);
   overlayEl.querySelector('#voice-stop-btn')?.addEventListener('click', closeVoiceOverlay);
 
-  // Start listening
   startRecognition();
 }
 
-export function closeVoiceOverlay() {
+export function closeVoiceOverlay(): void {
   state.voiceOverlayActive = false;
   shouldRestartRecognition = false;
 
-  // Stop recognition
   if (recognition) {
     recognition.onend = null;
     recognition.abort();
     recognition = null;
   }
 
-  // Stop any playing audio
   stopCurrentAudio();
 
-  // Clear TTS queue
   ttsQueue = [];
   isPlayingTTS = false;
   prefetchedAudio.clear();
 
-  // Abort any in-flight stream
   if (state.voiceStreamController) {
     state.voiceStreamController.abort();
     state.voiceStreamController = null;
@@ -163,18 +154,13 @@ export function closeVoiceOverlay() {
 
   setVoiceStatus('idle');
 
-  // Remove overlay with animation
   if (overlayEl) {
     overlayEl.classList.remove('active');
-    overlayEl.addEventListener(
-      'transitionend',
-      () => {
-        overlayEl?.remove();
-        overlayEl = null;
-      },
-      { once: true }
-    );
-    // Fallback removal if transition doesn't fire
+    overlayEl.addEventListener('transitionend', () => {
+      overlayEl?.remove();
+      overlayEl = null;
+    }, { once: true });
+    // Fallback if transitionend does not fire
     setTimeout(() => {
       overlayEl?.remove();
       overlayEl = null;
@@ -182,7 +168,7 @@ export function closeVoiceOverlay() {
   }
 }
 
-function startRecognition() {
+function startRecognition(): void {
   if (!state.voiceOverlayActive) return;
 
   const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -197,7 +183,6 @@ function startRecognition() {
 
     const transcriptEl = overlayEl?.querySelector('.voice-transcript') as HTMLElement;
 
-    // Check if we're being interrupted (barge-in)
     if (state.voiceStatus === 'speaking') {
       handleBargeIn();
     }
@@ -214,7 +199,6 @@ function startRecognition() {
       }
     }
 
-    // Show interim results in overlay
     if (transcriptEl) {
       if (finalTranscript) {
         transcriptEl.textContent = finalTranscript;
@@ -225,14 +209,12 @@ function startRecognition() {
       }
     }
 
-    // Process final transcript
     if (finalTranscript.trim()) {
       handleUserSpeech(finalTranscript.trim());
     }
   };
 
   recognition.onend = () => {
-    // Auto-restart if we're still in voice mode and should be listening
     if (state.voiceOverlayActive && shouldRestartRecognition && state.voiceStatus !== 'processing') {
       try {
         recognition?.start();
@@ -261,12 +243,12 @@ function startRecognition() {
   }
 }
 
-async function handleUserSpeech(transcript: string) {
+async function handleUserSpeech(transcript: string): Promise<void> {
   if (!state.voiceOverlayActive || state.voiceStatus === 'processing') return;
 
   setVoiceStatus('processing');
 
-  // Temporarily stop recognition during processing to avoid picking up TTS audio
+  // Stop recognition during processing to avoid picking up TTS audio
   shouldRestartRecognition = false;
   if (recognition) {
     recognition.onend = null;
@@ -274,12 +256,10 @@ async function handleUserSpeech(transcript: string) {
     recognition = null;
   }
 
-  // Add user message to chat
   addMessage('Jij (Student)', transcript, 'student');
   state.conversationHistory.push({ role: 'user', content: transcript });
   updateChatSessionMeta();
 
-  // Ensure system prompt is loaded
   if (!(await ensureSystemPromptLoaded())) {
     addMessage('Systeem', 'Fout: Kon de systeem-prompt niet laden.', 'system');
     restartListening();
@@ -291,7 +271,6 @@ async function handleUserSpeech(transcript: string) {
 
   addTypingIndicator(personaName, 'patient');
 
-  // Start streaming response
   if (state.voiceStreamController) state.voiceStreamController.abort();
   state.voiceStreamController = new AbortController();
 
@@ -307,7 +286,6 @@ async function handleUserSpeech(transcript: string) {
 
         sentenceBuffer += delta;
 
-        // Split on sentence boundaries
         const sentences = splitSentences(sentenceBuffer);
         if (sentences.completed.length > 0) {
           for (const sentence of sentences.completed) {
@@ -319,7 +297,6 @@ async function handleUserSpeech(transcript: string) {
       state.voiceStreamController.signal
     );
 
-    // Handle any remaining text in the buffer
     if (sentenceBuffer.trim() && state.voiceOverlayActive) {
       enqueueTTS(sentenceBuffer.trim());
       sentenceBuffer = '';
@@ -332,7 +309,6 @@ async function handleUserSpeech(transcript: string) {
       addMessage(personaName, fullResponseText, 'patient');
       updateChatSessionMeta();
 
-      // Show bot response in overlay transcript
       const transcriptEl = overlayEl?.querySelector('.voice-transcript') as HTMLElement;
       if (transcriptEl) {
         transcriptEl.textContent =
@@ -350,7 +326,6 @@ async function handleUserSpeech(transcript: string) {
     state.voiceStreamController = null;
   }
 
-  // Wait for TTS queue to finish, then restart listening
   await waitForTTSQueueEmpty();
 
   if (state.voiceOverlayActive) {
@@ -380,19 +355,17 @@ function splitSentences(text: string): { completed: string[]; remaining: string 
   };
 }
 
-function enqueueTTS(sentence: string) {
+function enqueueTTS(sentence: string): void {
   ttsQueue.push(sentence);
 
-  // Start prefetching audio
   prefetchTTSAudio(sentence);
 
-  // Start playback if not already playing
   if (!isPlayingTTS) {
     processNextTTS();
   }
 }
 
-async function prefetchTTSAudio(sentence: string) {
+async function prefetchTTSAudio(sentence: string): Promise<void> {
   if (prefetchedAudio.has(sentence)) return;
   try {
     const audioBlob = await textToSpeech(sentence);
@@ -402,7 +375,7 @@ async function prefetchTTSAudio(sentence: string) {
   }
 }
 
-async function processNextTTS() {
+async function processNextTTS(): Promise<void> {
   if (ttsQueue.length === 0) {
     isPlayingTTS = false;
     return;
@@ -432,7 +405,6 @@ async function processNextTTS() {
   }
   prefetchedAudio.delete(sentence);
 
-  // Prefetch next sentence in queue
   if (ttsQueue.length > 0 && !prefetchedAudio.has(ttsQueue[0])) {
     prefetchTTSAudio(ttsQueue[0]);
   }
@@ -453,11 +425,10 @@ async function processNextTTS() {
     if (audioUrl) URL.revokeObjectURL(audioUrl);
   }
 
-  // Continue with next sentence
   processNextTTS();
 }
 
-function stopCurrentAudio() {
+function stopCurrentAudio(): void {
   if (state.currentVoiceAudio) {
     state.currentVoiceAudio.pause();
     state.currentVoiceAudio.currentTime = 0;
@@ -465,16 +436,13 @@ function stopCurrentAudio() {
   }
 }
 
-function handleBargeIn() {
-  // Stop current audio playback
+function handleBargeIn(): void {
   stopCurrentAudio();
 
-  // Clear TTS queue
   ttsQueue = [];
   isPlayingTTS = false;
   prefetchedAudio.clear();
 
-  // Abort streaming if still in progress
   if (state.voiceStreamController) {
     state.voiceStreamController.abort();
     state.voiceStreamController = null;
@@ -483,7 +451,7 @@ function handleBargeIn() {
   setVoiceStatus('listening');
 }
 
-function restartListening() {
+function restartListening(): void {
   if (!state.voiceOverlayActive) return;
   setVoiceStatus('listening');
   startRecognition();

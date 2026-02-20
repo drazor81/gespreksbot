@@ -4,7 +4,13 @@ import { speechToText, textToSpeech } from './api';
 import { addMessage, addTypingIndicator, updateChatSessionMeta } from './ui';
 import { generateResponseAndReturn } from './chat';
 
-export function updateLiveStatus(statusState: 'idle' | 'listening' | 'processing' | 'speaking') {
+const STATUS_LABELS: Record<string, string> = {
+  listening: 'Luistert...',
+  processing: 'Verwerkt...',
+  speaking: 'Spreekt...'
+};
+
+export function updateLiveStatus(statusState: 'idle' | 'listening' | 'processing' | 'speaking'): void {
   const btn = document.querySelector('#live-conv-btn') as HTMLButtonElement;
   const label = btn?.querySelector('.live-conv-label') as HTMLSpanElement;
   const statusEl = document.querySelector('#live-status') as HTMLElement;
@@ -17,35 +23,19 @@ export function updateLiveStatus(statusState: 'idle' | 'listening' | 'processing
   statusEl.style.display = 'none';
   indicator?.classList.remove('listening', 'processing', 'speaking');
 
-  switch (statusState) {
-    case 'idle':
-      if (label) label.textContent = 'Start gesprek';
-      break;
-    case 'listening':
-      btn.classList.add('active');
-      if (label) label.textContent = 'Stop gesprek';
-      statusEl.style.display = 'flex';
-      indicator?.classList.add('listening');
-      if (statusText) statusText.textContent = 'Luistert...';
-      break;
-    case 'processing':
-      btn.classList.add('active');
-      if (label) label.textContent = 'Stop gesprek';
-      statusEl.style.display = 'flex';
-      indicator?.classList.add('processing');
-      if (statusText) statusText.textContent = 'Verwerkt...';
-      break;
-    case 'speaking':
-      btn.classList.add('active');
-      if (label) label.textContent = 'Stop gesprek';
-      statusEl.style.display = 'flex';
-      indicator?.classList.add('speaking');
-      if (statusText) statusText.textContent = 'Spreekt...';
-      break;
+  if (statusState === 'idle') {
+    if (label) label.textContent = 'Start gesprek';
+    return;
   }
+
+  btn.classList.add('active');
+  if (label) label.textContent = 'Stop gesprek';
+  statusEl.style.display = 'flex';
+  indicator?.classList.add(statusState);
+  if (statusText) statusText.textContent = STATUS_LABELS[statusState];
 }
 
-export async function startLiveConversation() {
+export async function startLiveConversation(): Promise<void> {
   try {
     state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     state.liveConversationActive = true;
@@ -61,8 +51,7 @@ export async function startLiveConversation() {
   }
 }
 
-export function stopLiveConversation() {
-  state.liveConversationActive = false;
+function clearTimerAndAudioContext(): void {
   if (state.silenceTimer) {
     clearTimeout(state.silenceTimer);
     state.silenceTimer = null;
@@ -71,10 +60,19 @@ export function stopLiveConversation() {
     state.audioContext.close();
     state.audioContext = null;
   }
+}
+
+function stopMediaRecorder(): void {
   if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
     state.mediaRecorder.stop();
   }
   state.isRecording = false;
+}
+
+export function stopLiveConversation(): void {
+  state.liveConversationActive = false;
+  clearTimerAndAudioContext();
+  stopMediaRecorder();
   if (state.micStream) {
     state.micStream.getTracks().forEach((t) => t.stop());
     state.micStream = null;
@@ -82,7 +80,7 @@ export function stopLiveConversation() {
   updateLiveStatus('idle');
 }
 
-function startListeningCycle() {
+function startListeningCycle(): void {
   if (!state.liveConversationActive || !state.micStream) return;
 
   state.audioChunks = [];
@@ -104,22 +102,15 @@ function startListeningCycle() {
   startSilenceDetection(state.micStream);
 }
 
-function stopCurrentRecording() {
-  if (state.silenceTimer) {
-    clearTimeout(state.silenceTimer);
-    state.silenceTimer = null;
-  }
-  if (state.audioContext) {
-    state.audioContext.close();
-    state.audioContext = null;
-  }
-  if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
-    state.mediaRecorder.stop();
-  }
-  state.isRecording = false;
+function stopCurrentRecording(): void {
+  clearTimerAndAudioContext();
+  stopMediaRecorder();
 }
 
-function startSilenceDetection(stream: MediaStream) {
+function startSilenceDetection(stream: MediaStream): void {
+  const SILENCE_THRESHOLD = 15;
+  const SILENCE_DURATION = 1500;
+
   state.audioContext = new AudioContext();
   const source = state.audioContext.createMediaStreamSource(stream);
   const analyser = state.audioContext.createAnalyser();
@@ -128,15 +119,10 @@ function startSilenceDetection(stream: MediaStream) {
 
   const dataArray = new Uint8Array(analyser.frequencyBinCount);
   let silenceStart: number | null = null;
-  const SILENCE_THRESHOLD = 15;
-  const SILENCE_DURATION = 1500;
 
-  function checkSilence() {
+  function checkSilence(): void {
     if (!state.isRecording || !state.liveConversationActive) {
-      if (state.audioContext) {
-        state.audioContext.close();
-        state.audioContext = null;
-      }
+      clearTimerAndAudioContext();
       return;
     }
 
@@ -156,10 +142,7 @@ function startSilenceDetection(stream: MediaStream) {
 
       state.silenceTimer = window.setTimeout(checkSilence, 100);
     } catch {
-      if (state.audioContext) {
-        state.audioContext.close();
-        state.audioContext = null;
-      }
+      clearTimerAndAudioContext();
       stopCurrentRecording();
     }
   }
@@ -167,7 +150,7 @@ function startSilenceDetection(stream: MediaStream) {
   state.silenceTimer = window.setTimeout(checkSilence, 1000);
 }
 
-async function handleLiveSpeechInput(audioBlob: Blob) {
+async function handleLiveSpeechInput(audioBlob: Blob): Promise<void> {
   if (!state.liveConversationActive) return;
 
   updateLiveStatus('processing');
@@ -210,7 +193,7 @@ async function handleLiveSpeechInput(audioBlob: Blob) {
 
     if (!state.liveConversationActive) return;
 
-    if (responseText && state.liveConversationActive) {
+    if (responseText) {
       updateLiveStatus('speaking');
       await speakResponse(responseText);
     }
@@ -225,7 +208,7 @@ async function handleLiveSpeechInput(audioBlob: Blob) {
   }
 }
 
-async function speakResponse(text: string) {
+async function speakResponse(text: string): Promise<void> {
   let audioUrl: string | null = null;
   try {
     const audioBlob = await textToSpeech(text);
