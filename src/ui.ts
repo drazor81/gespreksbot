@@ -502,9 +502,14 @@ export function showTheory(): void {
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>');
 
+  // IMPORTANT: This function must only ever receive static build-time content from
+  // the knowledge JSON files. If the data source becomes dynamic, replace this
+  // sanitiser with DOMPurify or an equivalent allowlist sanitiser.
   const sanitized = htmlContent
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+    .replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/\s*on\w+\s*=\s*[^\s>]*/gi, '')
+    .replace(/(href|src|action)\s*=\s*["']?\s*javascript:[^"'\s>]*/gi, '$1="#"');
   content.innerHTML = sanitized;
   showModal('theory-modal');
 }
