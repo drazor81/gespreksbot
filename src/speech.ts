@@ -84,7 +84,11 @@ function startListeningCycle(): void {
   if (!state.liveConversationActive || !state.micStream) return;
 
   state.audioChunks = [];
-  state.mediaRecorder = new MediaRecorder(state.micStream, { mimeType: 'audio/webm;codecs=opus' });
+  const preferredMime = 'audio/webm;codecs=opus';
+  const recorderOptions = MediaRecorder.isTypeSupported(preferredMime)
+    ? { mimeType: preferredMime }
+    : {};
+  state.mediaRecorder = new MediaRecorder(state.micStream, recorderOptions);
 
   state.mediaRecorder.ondataavailable = (e) => {
     if (e.data.size > 0) state.audioChunks.push(e.data);
@@ -92,7 +96,8 @@ function startListeningCycle(): void {
 
   state.mediaRecorder.onstop = () => {
     if (!state.liveConversationActive) return;
-    const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm;codecs=opus' });
+    const blobType = state.mediaRecorder?.mimeType || 'audio/webm';
+    const audioBlob = new Blob(state.audioChunks, { type: blobType });
     handleLiveSpeechInput(audioBlob);
   };
 
