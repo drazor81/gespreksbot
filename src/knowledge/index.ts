@@ -54,6 +54,8 @@ export function getKorteUitleg(id: string): string {
 export function getKennisVoorLeerdoelen(leerdoelen: string[]): Kennisitem[] {
   const specifiek = leerdoelen.filter((ld) => ld !== 'Vrije oefening' && kennisbank[ld]).map((ld) => kennisbank[ld]);
 
+  // Bij alleen "Vrije oefening": geef LSD als basistechniek mee zodat de coach
+  // en de client altijd minimaal één gesprekstechniek als referentie hebben.
   if (specifiek.length === 0 && leerdoelen.includes('Vrije oefening')) {
     return [kennisbank['LSD']];
   }
