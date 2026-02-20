@@ -601,11 +601,8 @@ export function updateStartButtonState(): void {
   if (countEl) countEl.textContent = `${checked.length}/${MAX_LEERDOELEN}`;
 
   if (startBtn) {
-    if (checked.length === 0) {
-      startBtn.classList.add('btn-disabled');
-    } else {
-      startBtn.classList.remove('btn-disabled');
-    }
+    startBtn.disabled = checked.length === 0;
+    startBtn.classList.toggle('btn-disabled', checked.length === 0);
   }
 }
 
