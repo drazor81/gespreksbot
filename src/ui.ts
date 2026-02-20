@@ -861,7 +861,13 @@ export function initUI(): void {
     if (!scenario) return;
 
     descriptionBox.style.display = 'block';
-    descriptionBox.innerHTML = `<strong>${scenario.name}</strong>${scenario.description}`;
+    descriptionBox.innerHTML = '';
+    const nameEl = document.createElement('strong');
+    nameEl.textContent = scenario.name;
+    const descEl = document.createElement('span');
+    descEl.textContent = scenario.description;
+    descriptionBox.appendChild(nameEl);
+    descriptionBox.appendChild(descEl);
     startScenarioBtn.style.display = 'block';
 
     const settingSelect = document.querySelector('#setting-select') as HTMLSelectElement | null;
