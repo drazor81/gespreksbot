@@ -156,14 +156,14 @@ export function closeVoiceOverlay(): void {
 
   if (overlayEl) {
     overlayEl.classList.remove('active');
-    overlayEl.addEventListener('transitionend', () => {
-      overlayEl?.remove();
-      overlayEl = null;
+    const elToRemove = overlayEl;
+    overlayEl = null;
+    elToRemove.addEventListener('transitionend', () => {
+      elToRemove.remove();
     }, { once: true });
     // Fallback if transitionend does not fire
     setTimeout(() => {
-      overlayEl?.remove();
-      overlayEl = null;
+      elToRemove.remove();
     }, 400);
   }
 }
