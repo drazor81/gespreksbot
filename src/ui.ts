@@ -34,6 +34,10 @@ function hideModal(id: string): void {
   if (modal) modal.style.display = 'none';
 }
 
+/**
+ * Wires overlay-click-to-close on a modal. Call exactly once per modal during
+ * initialisation. Calling multiple times will register duplicate listeners.
+ */
 function wireModalCloseOnOverlayClick(modalId: string): void {
   document.querySelector(`#${modalId}`)?.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).id === modalId) hideModal(modalId);
