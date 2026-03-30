@@ -1,15 +1,6 @@
 import { state } from './state';
-import {
-  COLLEGA_ROLLEN,
-  MOEILIJKHEID_BESCHRIJVING,
-  MOEILIJKHEID_COLLEGA,
-  RECOMMENDED_MIN_TURNS,
-  getCollegaContext,
-  getArchetypeBeschrijving,
-  getRandomName,
-  scenarios
-} from './config';
-import { sendChatMessage } from './api';
+import { RECOMMENDED_MIN_TURNS, getArchetypeBeschrijving, scenarios } from './config';
+import { buildAiRequest, sendAiModeRequest } from './api';
 import {
   addMessage,
   addTypingIndicator,
@@ -29,26 +20,18 @@ import {
   updateStartButtonState,
   escapeHtml
 } from './ui';
-import { getClientInstructies, getCoachContext, getRubricContext, getKennisVoorLeerdoelen } from './knowledge';
+import { getKennisVoorLeerdoelen } from './knowledge';
 import { stopLiveConversation } from './speech';
 
-function getPersonaLabel(): string {
-  const rolLabel = state.isCollegaMode ? 'Collega' : 'Cliënt';
-  const name = state.currentScenario?.persona.name || (state.isCollegaMode ? 'de collega' : 'de cliënt');
-  return `${rolLabel} (${name})`;
-}
-
-function buildTranscript(): string {
-  return state.conversationHistory
-    .map((msg) => {
-      const speaker = msg.role === 'user' ? 'Student' : getPersonaLabel();
-      return `${speaker}: ${msg.content}`;
-    })
-    .join('\n\n');
-}
 
 export async function startScenarioFromSettings(): Promise<void> {
-  const placeholderName = state.isCollegaMode ? 'De collega' : 'De cliënt';
+  let archetypeForPrompt = state.selectedSettings.archetype;
+  if (state.selectedSettings.scenarioType === 'Eigen scenario' && state.selectedSettings.customScenario.trim()) {
+    archetypeForPrompt = 'scenario-inferred';
+  }
+
+  const archetypeResult = getArchetypeBeschrijving(archetypeForPrompt, state.selectedSettings.customArchetype);
+  const placeholderName = archetypeResult.isCollegaMode ? 'De collega' : 'De cliënt';
 
   state.currentScenario = {
     id: 'dynamic',
@@ -70,7 +53,10 @@ export async function startScenarioFromSettings(): Promise<void> {
   state.conversationClosed = false;
   state.latestFeedbackScores = null;
   state.dashboardSavedForConversation = false;
+  state.currentArchetypeBeschrijving = archetypeResult.beschrijving;
+  state.isCollegaMode = archetypeResult.isCollegaMode;
   prepareChat();
+
   const scenarioLabel =
     state.selectedSettings.scenarioType === 'Eigen scenario'
       ? state.selectedSettings.customScenario.substring(0, 50) + '...'
@@ -78,77 +64,17 @@ export async function startScenarioFromSettings(): Promise<void> {
   const rolLabel = state.isCollegaMode ? 'Collega' : 'Cliënt';
   addMessage('Systeem', `Gesprek gestart in ${state.selectedSettings.setting}. Scenario: ${scenarioLabel}`, 'system');
   addTypingIndicator(rolLabel, 'patient');
-
   updateChatSessionMeta();
-
-  let scenarioDescription = '';
-  let archetypeForPrompt = state.selectedSettings.archetype;
-
-  if (state.selectedSettings.scenarioType === 'Eigen scenario' && state.selectedSettings.customScenario.trim()) {
-    scenarioDescription = `EIGEN SCENARIO: ${state.selectedSettings.customScenario}. Leid zelf het juiste cliënttype af uit deze beschrijving.`;
-    archetypeForPrompt = 'scenario-inferred';
-  } else if (state.selectedSettings.scenarioType === 'Willekeurig') {
-    scenarioDescription =
-      'WILLEKEURIG: Bedenk zelf een passend en realistisch scenario voor deze setting en dit cliënttype.';
-  } else {
-    scenarioDescription = `Standaard scenario: ${state.selectedSettings.scenarioType}`;
-  }
-
-  const archetypeResult = getArchetypeBeschrijving(archetypeForPrompt, state.selectedSettings.customArchetype);
-  state.currentArchetypeBeschrijving = archetypeResult.beschrijving;
-  state.isCollegaMode = archetypeResult.isCollegaMode;
-
-  let archetypeDescription = state.selectedSettings.archetype;
-  if (archetypeForPrompt === 'scenario-inferred') {
-    archetypeDescription = 'een cliënt passend bij het beschreven scenario';
-  } else if (state.selectedSettings.archetype === 'Eigen type' && state.selectedSettings.customArchetype.trim()) {
-    archetypeDescription = state.selectedSettings.customArchetype;
-  } else if (state.selectedSettings.archetype === 'Willekeurig') {
-    archetypeDescription = 'het cliënttype dat beschreven staat in je karakter-sectie';
-  }
-
-  const randomHint = getRandomName();
-
-  let openingPrompt: string;
-  if (state.isCollegaMode) {
-    const collegaRol = COLLEGA_ROLLEN[state.selectedSettings.setting] || 'collega';
-    openingPrompt = `Je bent ${randomHint}, een ${collegaRol} in ${state.selectedSettings.setting}.
-${scenarioDescription}
-
-Je naam is ${randomHint}. Begin je antwoord VERPLICHT met je naam in dit formaat: [NAAM: ${randomHint}]
-Genereer daarna je EERSTE zin als collega. Je begint het gesprek — je verwacht informatie van de student (bijv. een overdracht, een telefonisch consult, of een overleg).
-Gebruik *italics* voor non-verbaal gedrag. Houd het kort (1-2 zinnen).
-
-Voorbeeld output:
-[NAAM: ${randomHint}]
-*Loopt snel de kamer binnen met een kop koffie* Hé, goedemorgen. Hoe is de nacht geweest? Zijn er bijzonderheden?`;
-  } else {
-    openingPrompt = `Je bent ${randomHint}, een ${archetypeDescription.toLowerCase()} in ${state.selectedSettings.setting}.
-${scenarioDescription}
-
-Je naam is ${randomHint}. Begin je antwoord VERPLICHT met je naam in dit formaat: [NAAM: ${randomHint}]
-Genereer daarna je EERSTE zin als cliënt. Beschrijf kort je situatie en stemming passend bij de setting.
-Gebruik *italics* voor non-verbaal gedrag. Houd het kort (1-2 zinnen).
-
-Voorbeeld output:
-[NAAM: ${randomHint}]
-*Kijkt op vanuit de stoel* Goedemorgen... ben ik eindelijk aan de beurt?`;
-  }
-
-  if (!(await ensureSystemPromptLoaded())) {
-    addMessage('Systeem', 'Fout: Kon de systeem-prompt niet laden.', 'system');
-    return;
-  }
 
   if (state.currentRequestController) state.currentRequestController.abort();
   state.currentRequestController = new AbortController();
 
   try {
-    const systemPrompt = buildDynamicSystemPrompt();
-
-    const data = await sendChatMessage(
-      systemPrompt,
-      [{ role: 'user', content: openingPrompt }],
+    const data = await sendAiModeRequest(
+      buildAiRequest('start', {
+        settings: getSelectedSettingsSnapshot(),
+        history: []
+      }),
       state.currentRequestController.signal
     );
 
@@ -276,38 +202,23 @@ export function handleSendMessage(): void {
   });
 }
 
-export async function ensureSystemPromptLoaded(): Promise<boolean> {
-  if (!state.cachedSystemPrompt) {
-    try {
-      const promptModule = await import('./prompts/system-prompt');
-      state.cachedSystemPrompt = promptModule.SYSTEM_PROMPT_MBO_V2;
-    } catch (error) {
-      console.error('Failed to load system prompt:', error);
-      return false;
-    }
-  }
-  return true;
+export function getSelectedSettingsSnapshot() {
+  return {
+    ...state.selectedSettings,
+    leerdoelen: [...state.selectedSettings.leerdoelen]
+  };
 }
 
-export function buildDynamicSystemPrompt(): string {
-  const persona = state.currentScenario?.persona;
-  const clientInstructies = getClientInstructies(state.selectedSettings.leerdoelen);
-  return (
-    state
-      .cachedSystemPrompt!.replace('{{SETTING}}', state.selectedSettings.setting)
-      .replace('{{SCENARIO_TYPE}}', state.selectedSettings.scenarioType)
-      .replace('{{LEERDOELEN}}', state.selectedSettings.leerdoelen.join(', '))
-      .replace(
-        '{{MOEILIJKHEID_BESCHRIJVING}}',
-        state.isCollegaMode
-          ? MOEILIJKHEID_COLLEGA[state.selectedSettings.moeilijkheid] || MOEILIJKHEID_COLLEGA['Gemiddeld']
-          : MOEILIJKHEID_BESCHRIJVING[state.selectedSettings.moeilijkheid] || MOEILIJKHEID_BESCHRIJVING['Gemiddeld']
-      )
-      .replace('{{ARCHETYPE_BESCHRIJVING}}', state.currentArchetypeBeschrijving)
-      .replace('{{PATIENT_NAME}}', persona?.name || (state.isCollegaMode ? 'Collega' : 'Client'))
-      .replace('{{ROLTYPE_CONTEXT}}', state.isCollegaMode ? getCollegaContext(state.selectedSettings.setting) : '') +
-    clientInstructies
-  );
+function getPendingConversationTurn(): { history: typeof state.conversationHistory; message: string } | null {
+  const latestMessage = state.conversationHistory.at(-1);
+  if (!latestMessage || latestMessage.role !== 'user') {
+    return null;
+  }
+
+  return {
+    history: state.conversationHistory.slice(0, -1),
+    message: latestMessage.content
+  };
 }
 
 export async function generateResponseAndReturn(): Promise<string | null> {
@@ -316,19 +227,25 @@ export async function generateResponseAndReturn(): Promise<string | null> {
   }
 
   const persona = state.currentScenario.persona;
-
-  if (!(await ensureSystemPromptLoaded())) {
-    addMessage('Systeem', 'Fout: Kon de systeem-prompt niet laden.', 'system');
+  const pendingTurn = getPendingConversationTurn();
+  if (!pendingTurn) {
+    removeTypingIndicators();
+    addMessage('Systeem', 'Geen studentbericht om te verwerken.', 'system');
     return null;
   }
-
-  const dynamicPrompt = buildDynamicSystemPrompt();
 
   if (state.currentRequestController) state.currentRequestController.abort();
   state.currentRequestController = new AbortController();
 
   try {
-    const data = await sendChatMessage(dynamicPrompt, state.conversationHistory, state.currentRequestController.signal);
+    const data = await sendAiModeRequest(
+      buildAiRequest('chat', {
+        settings: getSelectedSettingsSnapshot(),
+        history: pendingTurn.history,
+        message: pendingTurn.message
+      }),
+      state.currentRequestController.signal
+    );
 
     removeTypingIndicators();
 
@@ -380,29 +297,13 @@ export async function getHint(): Promise<void> {
 
   addTypingIndicator('Coach', 'meta');
 
-  const transcript = buildTranscript();
-  const coachKennis = getCoachContext(state.selectedSettings.leerdoelen);
-
-  const coachSystemPrompt = `Je bent een ervaren praktijkbegeleider die MBO-zorgstudenten coacht tijdens gespreksoefeningen. Je observeert het gesprek en geeft korte, behulpzame tips.
-
-## Kennis over de gesprekstechnieken die de student oefent:
-
-${coachKennis}`;
-
-  const coachUserPrompt = `Hier is het gesprek tot nu toe tussen een student en een cliënt:
-
----
-${transcript}
----
-
-Context:
-- Setting: ${state.selectedSettings.setting}
-- De student oefent met: ${state.selectedSettings.leerdoelen.join(', ')}
-
-Analyseer het gesprek op basis van je kennis over de gesprekstechnieken hierboven. Geef de student één korte tip (max 2 zinnen) om het gesprek te verbeteren. Wees bemoedigend en concreet. Beschrijf gewoon wat de student kan doen, niet welke techniek het is.`;
-
   try {
-    const data = await sendChatMessage(coachSystemPrompt, [{ role: 'user', content: coachUserPrompt }]);
+    const data = await sendAiModeRequest(
+      buildAiRequest('coach', {
+        settings: getSelectedSettingsSnapshot(),
+        history: state.conversationHistory.slice()
+      })
+    );
 
     removeTypingIndicators();
 
@@ -484,59 +385,20 @@ function buildSelfAssessmentSummary(): string {
   return html;
 }
 
-function buildSelfAssessmentContext(): string {
-  const entries = Object.entries(state.selfAssessment);
-  if (entries.length === 0) return 'De student heeft geen zelfbeoordeling ingevuld.';
-
-  const labelMap: Record<string, string> = { goed: 'Dit ging goed', twijfel: 'Twijfel', beter: 'Dit kan beter' };
-  return entries.map(([leerdoel, score]) => `- ${leerdoel}: ${labelMap[score] || score}`).join('\n');
-}
 
 async function generateAIFeedback(): Promise<void> {
   const feedbackContent = document.querySelector('#feedback-content')!;
   const summaryHtml = buildSelfAssessmentSummary();
   feedbackContent.innerHTML = summaryHtml + '<p class="feedback-loading">Feedback wordt gegenereerd...</p>';
 
-  const transcript = buildTranscript();
-  const coachKennis = getCoachContext(state.selectedSettings.leerdoelen);
-  const rubricKennis = getRubricContext(state.selectedSettings.leerdoelen);
-  const selfAssessmentContext = buildSelfAssessmentContext();
-
-  let feedbackPromptTemplate;
   try {
-    const promptModule = await import('./prompts/feedback-prompt');
-    feedbackPromptTemplate = promptModule.FEEDBACK_PROMPT;
-  } catch (error) {
-    console.error('Failed to load feedback prompt:', error);
-    feedbackContent.innerHTML =
-      summaryHtml + '<p class="feedback-error">Kon feedback-prompt niet laden. Probeer opnieuw.</p>';
-    return;
-  }
-
-  const feedbackSystemPrompt = feedbackPromptTemplate
-    .replace('{{LEERDOELEN}}', state.selectedSettings.leerdoelen.join(', '))
-    .replace('{{COACH_KENNIS}}', coachKennis)
-    .replace('{{RUBRIC}}', rubricKennis)
-    .replace('{{SELF_ASSESSMENT}}', selfAssessmentContext);
-
-  const feedbackUserPrompt = `Hier is het volledige gesprek tussen de student en de cliënt:
-
----
-${transcript}
----
-
-Context:
-- Setting: ${state.selectedSettings.setting}
-- Scenario: ${state.selectedSettings.scenarioType}
-- Cliënttype: ${state.selectedSettings.archetype}
-- Niveau: ${state.selectedSettings.moeilijkheid}
-- Leerdoelen: ${state.selectedSettings.leerdoelen.join(', ')}
-- Aantal beurten: ${state.conversationHistory.length}
-
-Geef nu je feedback volgens de voorgeschreven structuur.`;
-
-  try {
-    const data = await sendChatMessage(feedbackSystemPrompt, [{ role: 'user', content: feedbackUserPrompt }]);
+    const data = await sendAiModeRequest(
+      buildAiRequest('feedback', {
+        settings: getSelectedSettingsSnapshot(),
+        history: state.conversationHistory.slice(),
+        selfAssessment: { ...state.selfAssessment }
+      })
+    );
 
     if (data.error) {
       feedbackContent.innerHTML =
@@ -641,3 +503,5 @@ export function printFeedback(): void {
   renderFeedbackExportSummary();
   window.print();
 }
+
+

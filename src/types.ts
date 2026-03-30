@@ -1,3 +1,8 @@
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface Persona {
   name: string;
   age: number;

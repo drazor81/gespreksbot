@@ -1,7 +1,7 @@
 import { state } from './state';
-import { streamChatMessage, textToSpeech } from './api';
+import { buildAiRequest, streamAiModeRequest, textToSpeech } from './api';
 import { addMessage, updateChatSessionMeta, removeTypingIndicators, addTypingIndicator } from './ui';
-import { ensureSystemPromptLoaded, buildDynamicSystemPrompt } from './chat';
+import { getSelectedSettingsSnapshot } from './chat';
 
 type VoiceStatus = 'idle' | 'listening' | 'processing' | 'speaking';
 
@@ -260,13 +260,6 @@ async function handleUserSpeech(transcript: string): Promise<void> {
   state.conversationHistory.push({ role: 'user', content: transcript });
   updateChatSessionMeta();
 
-  if (!(await ensureSystemPromptLoaded())) {
-    addMessage('Systeem', 'Fout: Kon de systeem-prompt niet laden.', 'system');
-    restartListening();
-    return;
-  }
-
-  const systemPrompt = buildDynamicSystemPrompt();
   const personaName = state.currentScenario?.persona.name || (state.isCollegaMode ? 'Collega' : 'Client');
 
   addTypingIndicator(personaName, 'patient');
@@ -278,9 +271,12 @@ async function handleUserSpeech(transcript: string): Promise<void> {
   let fullResponseText = '';
 
   try {
-    fullResponseText = await streamChatMessage(
-      systemPrompt,
-      state.conversationHistory,
+    fullResponseText = await streamAiModeRequest(
+      buildAiRequest('stream', {
+        settings: getSelectedSettingsSnapshot(),
+        history: state.conversationHistory.slice(0, -1),
+        message: transcript
+      }),
       (delta: string) => {
         if (!state.voiceOverlayActive) return;
 
@@ -469,3 +465,5 @@ function waitForTTSQueueEmpty(): Promise<void> {
     check();
   });
 }
+
+

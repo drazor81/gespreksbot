@@ -1,106 +1,270 @@
+import { state } from './state';
+import type { AiModeRequest } from './shared/api-contract';
+
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
-export const API_URL = `${API_BASE}/api/chat`;
+const SESSION_REFRESH_SKEW_MS = 30_000;
+const DEV_BYPASS_CHALLENGE_TOKEN = 'dev-bypass';
 
-export async function sendChatMessage(
-  systemPrompt: string,
-  messages: { role: 'user' | 'assistant'; content: string }[],
-  signal?: AbortSignal
-): Promise<{ response?: string; error?: string }> {
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    signal,
-    body: JSON.stringify({ systemPrompt, messages })
-  });
-
-  if (!res.ok) {
-    throw new Error(`Server error: ${res.status}`);
-  }
-
-  return res.json();
+interface ApiErrorResponse {
+  error?: string;
 }
 
-export async function streamChatMessage(
-  systemPrompt: string,
-  messages: { role: 'user' | 'assistant'; content: string }[],
+interface SessionBootstrapResponse {
+  sessionToken: string;
+  expiresInSeconds: number;
+}
+
+interface JsonAiResponse extends ApiErrorResponse {
+  response?: string;
+}
+
+class UnauthorizedError extends Error {
+  constructor() {
+    super('Unauthorized');
+    this.name = 'UnauthorizedError';
+  }
+}
+
+let sessionBootstrapPromise: Promise<string> | null = null;
+
+
+function hasValidSessionToken(): boolean {
+  return Boolean(
+    state.sessionToken &&
+      state.sessionTokenExpiresAt &&
+      Date.now() < state.sessionTokenExpiresAt - SESSION_REFRESH_SKEW_MS
+  );
+}
+
+function clearSessionToken(): void {
+  state.sessionToken = null;
+  state.sessionTokenExpiresAt = null;
+}
+
+function resolveChallengeToken(): string {
+  const globalToken = (globalThis as typeof globalThis & { __TURNSTILE_TOKEN__?: string }).__TURNSTILE_TOKEN__;
+  if (typeof globalToken === 'string' && globalToken.trim()) {
+    return globalToken.trim();
+  }
+
+  if (import.meta.env.VITE_TURNSTILE_SITE_KEY) {
+    throw new Error('Challenge token ontbreekt. Vernieuw de beveiligingscheck en probeer opnieuw.');
+  }
+
+  return DEV_BYPASS_CHALLENGE_TOKEN;
+}
+
+async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = (await response.json()) as ApiErrorResponse;
+    if (typeof data.error === 'string' && data.error.trim()) {
+      return data.error;
+    }
+  } catch {
+    // Ignore JSON parsing failures for non-JSON error responses.
+  }
+
+  return fallback;
+}
+
+async function throwForFailedResponse(response: Response, fallback: string): Promise<never> {
+  if (response.status === 401) {
+    throw new UnauthorizedError();
+  }
+
+  throw new Error(await parseErrorMessage(response, fallback));
+}
+
+async function withFreshSessionToken<T>(operation: (sessionToken: string) => Promise<T>): Promise<T> {
+  const run = async (allowRefresh: boolean): Promise<T> => {
+    const sessionToken = await ensureSessionToken();
+
+    try {
+      return await operation(sessionToken);
+    } catch (error) {
+      if (allowRefresh && error instanceof UnauthorizedError) {
+        clearSessionToken();
+        return run(false);
+      }
+      throw error;
+    }
+  };
+
+  return run(true);
+}
+
+export async function bootstrapSession(challengeToken: string): Promise<SessionBootstrapResponse> {
+  const response = await fetch(`${API_BASE}/api/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ challengeToken })
+  });
+
+  if (!response.ok) {
+    await throwForFailedResponse(response, `Session bootstrap failed: ${response.status}`);
+  }
+
+  return (await response.json()) as SessionBootstrapResponse;
+}
+
+export async function ensureSessionToken(): Promise<string> {
+  if (hasValidSessionToken()) {
+    return state.sessionToken!;
+  }
+
+  if (!sessionBootstrapPromise) {
+    sessionBootstrapPromise = bootstrapSession(resolveChallengeToken())
+      .then((data) => {
+        state.sessionToken = data.sessionToken;
+        state.sessionTokenExpiresAt = Date.now() + data.expiresInSeconds * 1000;
+        return data.sessionToken;
+      })
+      .finally(() => {
+        sessionBootstrapPromise = null;
+      });
+  }
+
+  return sessionBootstrapPromise;
+}
+
+export function buildAiRequest(mode: AiModeRequest['mode'], payload: Omit<AiModeRequest, 'mode'>): AiModeRequest {
+  return { mode, ...payload };
+}
+
+export async function sendAiModeRequest(
+  request: AiModeRequest,
+  signal?: AbortSignal
+): Promise<JsonAiResponse> {
+  return withFreshSessionToken(async (sessionToken) => {
+    const response = await fetch(`${API_BASE}/api/ai-mode`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionToken}`
+      },
+      signal,
+      body: JSON.stringify(request)
+    });
+
+    if (!response.ok) {
+      await throwForFailedResponse(response, `Server error: ${response.status}`);
+    }
+
+    return (await response.json()) as JsonAiResponse;
+  });
+}
+
+export async function streamAiModeRequest(
+  request: AiModeRequest,
   onDelta: (text: string) => void,
   signal?: AbortSignal
 ): Promise<string> {
-  const res = await fetch(`${API_BASE}/api/chat/stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    signal,
-    body: JSON.stringify({ systemPrompt, messages })
-  });
+  return withFreshSessionToken(async (sessionToken) => {
+    const response = await fetch(`${API_BASE}/api/ai-mode/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionToken}`
+      },
+      signal,
+      body: JSON.stringify(request)
+    });
 
-  if (!res.ok) {
-    throw new Error(`Server error: ${res.status}`);
-  }
+    if (!response.ok) {
+      await throwForFailedResponse(response, `Server error: ${response.status}`);
+    }
 
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-  let buffer = '';
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('Streaming response body ontbreekt.');
+    }
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+    const decoder = new TextDecoder();
+    let fullText = '';
+    let buffer = '';
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const jsonStr = line.slice(6).trim();
-      if (!jsonStr) continue;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
-      try {
-        const data = JSON.parse(jsonStr) as { delta?: string; done?: boolean; fullText?: string; error?: string };
-        if (data.error) throw new Error(data.error);
-        if (data.delta) {
-          fullText += data.delta;
-          onDelta(data.delta);
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const jsonString = line.slice(6).trim();
+        if (!jsonString) continue;
+
+        try {
+          const data = JSON.parse(jsonString) as {
+            delta?: string;
+            done?: boolean;
+            fullText?: string;
+            error?: string;
+          };
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          if (data.delta) {
+            fullText += data.delta;
+            onDelta(data.delta);
+          }
+          if (data.done && data.fullText) {
+            fullText = data.fullText;
+          }
+        } catch (error) {
+          if (error instanceof SyntaxError) {
+            continue;
+          }
+          throw error;
         }
-        if (data.done && data.fullText) {
-          fullText = data.fullText;
-        }
-      } catch (e) {
-        if (e instanceof SyntaxError) continue;
-        throw e;
       }
     }
-  }
 
-  return fullText;
+    return fullText;
+  });
 }
 
 export async function speechToText(audioBlob: Blob): Promise<{ transcript?: string; error?: string }> {
-  const formData = new FormData();
-  formData.append('audio', audioBlob, 'recording.webm');
+  return withFreshSessionToken(async (sessionToken) => {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
 
-  const res = await fetch(`${API_BASE}/api/speech-to-text`, {
-    method: 'POST',
-    body: formData
+    const response = await fetch(`${API_BASE}/api/speech-to-text`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${sessionToken}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      await throwForFailedResponse(response, `STT error: ${response.status}`);
+    }
+
+    return (await response.json()) as { transcript?: string; error?: string };
   });
-
-  if (!res.ok) {
-    throw new Error(`STT error: ${res.status}`);
-  }
-
-  return res.json();
 }
 
 export async function textToSpeech(text: string): Promise<Blob> {
-  const res = await fetch(`${API_BASE}/api/text-to-speech`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
+  return withFreshSessionToken(async (sessionToken) => {
+    const response = await fetch(`${API_BASE}/api/text-to-speech`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${sessionToken}`
+      },
+      body: JSON.stringify({ text })
+    });
+
+    if (!response.ok) {
+      await throwForFailedResponse(response, `TTS error: ${response.status}`);
+    }
+
+    return response.blob();
   });
-
-  if (!res.ok) {
-    throw new Error(`TTS error: ${res.status}`);
-  }
-
-  return res.blob();
 }
+
+

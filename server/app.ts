@@ -193,6 +193,77 @@ export function createApp() {
       res.status(500).json({ error: 'Er ging iets mis met de AI. Probeer het opnieuw.' });
     }
   });
+
+  app.post('/api/ai-mode/stream', async (req: Request, res: Response) => {
+    const parsed = aiModeRequestSchema.safeParse(req.body);
+    if (!parsed.success || parsed.data.mode !== 'stream') {
+      res.status(400).json({ error: 'Invalid AI mode request.' });
+      return;
+    }
+
+    const authHeader = req.get('authorization');
+    const secret = process.env.SESSION_TOKEN_SECRET;
+    if (!authHeader?.startsWith('Bearer ') || !secret) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const payload = await verifySessionToken(secret, authHeader.slice('Bearer '.length));
+      const sid = typeof payload.sid === 'string' ? payload.sid : randomUUID();
+      const built = buildModePayload({ sid, store: sessionStateStore, input: parsed.data });
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
+      let aborted = false;
+      req.on('close', () => {
+        aborted = true;
+      });
+
+      const stream = anthropic.messages.stream({
+        model: MODEL,
+        max_tokens: 1024,
+        system: built.systemPrompt,
+        messages: built.messages.map((message) => ({
+          role: message.role,
+          content: message.content
+        }))
+      });
+
+      let fullText = '';
+
+      stream.on('text', (text) => {
+        if (aborted) return;
+        fullText += text;
+        res.write(`data: ${JSON.stringify({ delta: text })}\n\n`);
+      });
+
+      stream.on('error', (error) => {
+        console.error('Structured AI mode stream error:', error);
+        if (!aborted) {
+          res.write(`data: ${JSON.stringify({ error: 'Er ging iets mis met de AI.' })}\n\n`);
+          res.end();
+        }
+      });
+
+      await stream.finalMessage();
+
+      if (!aborted) {
+        res.write(`data: ${JSON.stringify({ done: true, fullText })}\n\n`);
+        res.end();
+      }
+    } catch (error) {
+      console.error('Structured AI mode stream error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Er ging iets mis met de AI. Probeer het opnieuw.' });
+      } else {
+        res.end();
+      }
+    }
+  });
   app.post('/api/chat', async (req: Request, res: Response) => {
     try {
       const input = validateChatInput(req.body, res);
@@ -367,5 +438,7 @@ export function createApp() {
 
   return app;
 }
+
+
 
 

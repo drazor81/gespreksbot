@@ -1,8 +1,8 @@
-import type { Scenario, ScoreStats, SelectedSettings } from './types';
+import type { ConversationMessage, Scenario, ScoreStats, SelectedSettings } from './types';
 import { SETTINGS_OPTIONS } from './config';
 
 export interface AppState {
-  conversationHistory: { role: 'user' | 'assistant'; content: string }[];
+  conversationHistory: ConversationMessage[];
   speechMode: boolean;
   mediaRecorder: MediaRecorder | null;
   audioChunks: Blob[];
@@ -18,12 +18,13 @@ export interface AppState {
   conversationClosed: boolean;
   latestFeedbackScores: ScoreStats | null;
   dashboardSavedForConversation: boolean;
-  cachedSystemPrompt: string | null;
   currentRequestController: AbortController | null;
   selectedSettings: SelectedSettings;
   emptyTranscriptCount: number;
   isCollegaMode: boolean;
   currentArchetypeBeschrijving: string;
+  sessionToken: string | null;
+  sessionTokenExpiresAt: number | null;
   // Voice overlay state
   voiceOverlayActive: boolean;
   voiceStatus: 'idle' | 'listening' | 'processing' | 'speaking';
@@ -49,7 +50,6 @@ function createInitialState(): AppState {
     conversationClosed: false,
     latestFeedbackScores: null,
     dashboardSavedForConversation: false,
-    cachedSystemPrompt: null,
     currentRequestController: null,
     selectedSettings: {
       setting: SETTINGS_OPTIONS.setting[0],
@@ -63,6 +63,8 @@ function createInitialState(): AppState {
     emptyTranscriptCount: 0,
     isCollegaMode: false,
     currentArchetypeBeschrijving: '',
+    sessionToken: null,
+    sessionTokenExpiresAt: null,
     voiceOverlayActive: false,
     voiceStatus: 'idle',
     currentVoiceAudio: null,

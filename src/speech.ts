@@ -1,6 +1,6 @@
 import { state } from './state';
 import { MAX_EMPTY_RETRIES } from './config';
-import { speechToText, textToSpeech } from './api';
+import { ensureSessionToken, speechToText, textToSpeech } from './api';
 import { addMessage, addTypingIndicator, updateChatSessionMeta } from './ui';
 import { generateResponseAndReturn } from './chat';
 
@@ -36,6 +36,14 @@ export function updateLiveStatus(statusState: 'idle' | 'listening' | 'processing
 }
 
 export async function startLiveConversation(): Promise<void> {
+  try {
+    await ensureSessionToken();
+  } catch {
+    state.liveConversationActive = false;
+    addMessage('Systeem', 'Kon geen beveiligde sessie starten. Ververs de pagina en probeer opnieuw.', 'system');
+    return;
+  }
+
   try {
     state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     state.liveConversationActive = true;
@@ -231,3 +239,4 @@ async function speakResponse(text: string): Promise<void> {
     if (audioUrl) URL.revokeObjectURL(audioUrl);
   }
 }
+

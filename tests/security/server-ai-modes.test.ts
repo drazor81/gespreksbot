@@ -78,4 +78,22 @@ describe('buildModePayload', () => {
 
     expect(response.status).toBe(400);
   });
+
+  it('rejects non-stream payloads on the structured stream endpoint before calling the model', async () => {
+    process.env.SESSION_TOKEN_SECRET = '12345678901234567890123456789012';
+    const token = await createSessionToken(process.env.SESSION_TOKEN_SECRET, 'session-4');
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/ai-mode/stream')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        mode: 'chat',
+        settings: { ...baseSettings },
+        history: [],
+        message: 'Hallo'
+      });
+
+    expect(response.status).toBe(400);
+  });
 });
