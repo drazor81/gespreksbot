@@ -5,6 +5,7 @@ import {
   RECOMMENDED_MIN_TURNS,
   TARGET_TURNS,
   DASHBOARD_STORAGE_KEY,
+  DASHBOARD_RETENTION_DAYS,
   scenarios
 } from './config';
 import { getKorteUitleg, getKennisVoorLeerdoelen, getTheorieVoorStudent } from './knowledge';
@@ -174,8 +175,21 @@ export function loadDashboardSessions(): DashboardSession[] {
   try {
     const raw = localStorage.getItem(DASHBOARD_STORAGE_KEY);
     if (!raw) return [];
+
     const parsed = JSON.parse(raw) as DashboardSession[];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    const cutoff = Date.now() - DASHBOARD_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    const filtered = parsed.filter((session) => {
+      const timestamp = Date.parse(session.dateIso);
+      return Number.isFinite(timestamp) && timestamp >= cutoff;
+    });
+
+    if (filtered.length !== parsed.length) {
+      saveDashboardSessions(filtered);
+    }
+
+    return filtered;
   } catch {
     localStorage.removeItem(DASHBOARD_STORAGE_KEY);
     return [];
@@ -758,7 +772,10 @@ export function initUI(): void {
           <h2>Docentdashboard</h2>
           <button type="button" id="close-dashboard-btn" class="close-btn" aria-label="Sluit dashboard">&times;</button>
         </div>
-        <div id="dashboard-content" class="modal-body"></div>
+        <div class="modal-body">
+          <button type="button" id="clear-dashboard-btn" class="modal-secondary-btn">Wis lokaal dashboard</button>
+          <div id="dashboard-content"></div>
+        </div>
       </div>
     </div>
     <div id="confirm-modal" class="modal" style="display: none;">
@@ -877,6 +894,13 @@ export function initUI(): void {
     showModal('dashboard-modal');
   });
   document.querySelector('#close-dashboard-btn')?.addEventListener('click', () => hideModal('dashboard-modal'));
+  document.querySelector('#clear-dashboard-btn')?.addEventListener('click', async () => {
+    const shouldClear = await showConfirmDialog('Weet je zeker dat je het lokale dashboard wilt wissen?');
+    if (!shouldClear) return;
+    localStorage.removeItem(DASHBOARD_STORAGE_KEY);
+    renderDashboard();
+    showToast('Lokaal dashboard gewist.', 'success');
+  });
   wireModalCloseOnOverlayClick('dashboard-modal');
 
   document.querySelector('#feedback-tab-gesprek')?.addEventListener('click', () => setFeedbackTab('gesprek'));
@@ -967,4 +991,5 @@ export function initUI(): void {
   updateConversationActionButtons();
   updateChatSessionMeta();
 }
+
 

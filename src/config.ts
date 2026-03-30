@@ -111,6 +111,7 @@ export const MOEILIJKHEID_COLLEGA: Record<string, string> = {
 export const RECOMMENDED_MIN_TURNS = 6;
 export const TARGET_TURNS = 8;
 export const DASHBOARD_STORAGE_KEY = 'zorggesprek-docent-dashboard-v1';
+export const DASHBOARD_RETENTION_DAYS = 14;
 export const MAX_EMPTY_RETRIES = 3;
 
 export function getCollegaContext(setting: string): string {
@@ -442,3 +443,4 @@ export const TITLES = ['Mevrouw', 'Meneer'];
 export function getRandomName(): string {
   return `${TITLES[Math.floor(Math.random() * TITLES.length)]} ${LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]}`;
 }
+
