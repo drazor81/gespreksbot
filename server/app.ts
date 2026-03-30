@@ -1,16 +1,34 @@
-import express, { type Request, type Response } from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import speech from '@google-cloud/speech';
 import textToSpeech from '@google-cloud/text-to-speech';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
 import { randomUUID } from 'crypto';
 import { createSessionToken, verifySessionToken } from './lib/session-tokens';
 import { verifyChallenge } from './lib/turnstile';
 import { aiModeRequestSchema } from '../src/shared/api-contract';
 import { buildModePayload } from './lib/mode-handlers';
 import { sessionStateStore } from './lib/session-state';
+
+const ALLOWED_AUDIO_MIME_TYPES = new Set(['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp4']);
+
+function normalizeRateLimitKey(ip: string | undefined): string {
+  return (ip ?? 'unknown').replace(/^::ffff:/, '');
+}
+
+function createRateLimiter(max: number, windowMs: number, message: string) {
+  return rateLimit({
+    windowMs,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => normalizeRateLimitKey(req.ip),
+    message: { error: message }
+  });
+}
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -58,6 +76,8 @@ function validateChatInput(
 
 export function createApp() {
   const app = express();
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1);
   const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
@@ -76,16 +96,16 @@ export function createApp() {
       }
     })
   );
-  app.use(express.json());
+  app.use(helmet({ contentSecurityPolicy: false }));
+  app.use(express.json({ limit: '64kb' }));
 
-  const apiLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: 20,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Te veel verzoeken. Probeer het over een minuut opnieuw.' }
-  });
+  const apiLimiter = createRateLimiter(20, 60 * 1000, 'Te veel verzoeken. Probeer het over een minuut opnieuw.');
+  const sessionLimiter = createRateLimiter(8, 10 * 60 * 1000, 'Te veel sessieverzoeken. Probeer later opnieuw.');
+  const speechLimiter = createRateLimiter(10, 60 * 1000, 'Te veel spraakverzoeken. Probeer het over een minuut opnieuw.');
 
+  app.use('/api/session', sessionLimiter);
+  app.use('/api/speech-to-text', speechLimiter);
+  app.use('/api/text-to-speech', speechLimiter);
   app.use('/api/', apiLimiter);
 
   const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
@@ -105,7 +125,22 @@ export function createApp() {
     console.log('GOOGLE_APPLICATION_CREDENTIALS not set — speech features disabled.');
   }
 
-  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 5 * 1024 * 1024,
+      files: 1,
+      fields: 0,
+      parts: 1
+    },
+    fileFilter: (_req, file, callback) => {
+      if (!ALLOWED_AUDIO_MIME_TYPES.has(file.mimetype)) {
+        callback(new Error('Ongeldig bestandstype. Alleen audio bestanden toegestaan.'));
+        return;
+      }
+      callback(null, true);
+    }
+  });
 
   app.post('/api/session', async (req: Request, res: Response) => {
     const { challengeToken } = req.body as { challengeToken?: string };
@@ -357,11 +392,6 @@ export function createApp() {
         return;
       }
 
-      const allowedMimeTypes = ['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp4'];
-      if (!allowedMimeTypes.includes(req.file.mimetype)) {
-        res.status(400).json({ error: 'Ongeldig bestandstype. Alleen audio bestanden toegestaan.' });
-        return;
-      }
 
       const audioBytes = req.file.buffer.toString('base64');
 
@@ -436,8 +466,46 @@ export function createApp() {
     }
   });
 
+  app.use((_req: Request, res: Response) => {
+    res.status(404).json({ error: 'Niet gevonden.' });
+  });
+
+  app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      next(error);
+      return;
+    }
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === 'LIMIT_FILE_SIZE') {
+        res.status(400).json({ error: 'Audiobestand te groot (max 5 MB).' });
+        return;
+      }
+
+      res.status(400).json({ error: 'Ongeldig uploadverzoek.' });
+      return;
+    }
+
+    if (error instanceof Error) {
+      if (error.message === 'Not allowed by CORS') {
+        res.status(403).json({ error: 'Not allowed by CORS' });
+        return;
+      }
+
+      if (error.message === 'Ongeldig bestandstype. Alleen audio bestanden toegestaan.') {
+        res.status(400).json({ error: error.message });
+        return;
+      }
+    }
+
+    console.error('Unhandled server error:', error);
+    res.status(500).json({ error: 'Interne serverfout.' });
+  });
+
   return app;
 }
+
+
 
 
 
