@@ -1,57 +1,56 @@
-# Handleiding: ZorgGesprek+ Online Zetten
+# Handleiding: ZorgGesprek+ veilig online zetten
 
-Je hebt een applicatie die uit twee delen bestaat: een **Server** (backend) en een **Website** (frontend). Je moet ze allebei online zetten. Hieronder de makkelijkste (vaak gratis) manier.
+ZorgGesprek+ draait als twee gescheiden onderdelen:
+- **Frontend** op **Vercel**
+- **Backend** op **Render**
 
-## Stap 1: De Server Online Zetten (via Render.com)
-De server is nodig om veilig met Claude (AI) te praten.
+Belangrijk: alleen **Render** verwerkt AI-verkeer. **Vercel host alleen de frontend** en proxy't geen prompts meer.
 
-1.  Zet je hele project op **GitHub** (als je dat nog niet hebt gedaan).
-2.  Maak een gratis account op [Render.com](https://render.com).
-3.  Klik op **New +** -> **Web Service**.
-4.  Koppel je GitHub repo.
-5.  Vul de volgende gegevens in bij de setup:
-    *   **Root Directory:** `server` (Belangrijk! De server zit in een submapje).
-    *   **Environment:** `Node`.
-    *   **Build Command:** `npm install`.
-    *   **Start Command:** `npm start`.
-6.  Scroll naar beneden naar **Environment Variables** en voeg toe:
-    *   Key: `ANTHROPIC_API_KEY`
-    *   Value: `sk-ant-...` (Je echte API sleutel die nu in je `.env` bestand staat).
-7.  Klik op **Create Web Service**.
-8.  Wacht tot hij klaar is. Je krijgt nu een URL (bijv. `https://zorggesprek-server.onrender.com`). **Kopieer deze URL.**
+## Stap 1: Backend op Render
+1. Zet de repo op GitHub.
+2. Maak op [Render](https://render.com) een nieuwe **Web Service**.
+3. Koppel dezelfde repo.
+4. Gebruik deze instellingen:
+   - **Root Directory:** `server`
+   - **Environment:** `Node`
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+5. Voeg minimaal deze environment variables toe:
+   - `ANTHROPIC_API_KEY=sk-ant-...`
+   - `SESSION_TOKEN_SECRET=` een random geheim van minimaal 32 tekens
+   - `SESSION_AUTH_MODE=turnstile` voor productie, `development` alleen lokaal
+   - `TURNSTILE_SECRET_KEY=` je Cloudflare Turnstile secret
+   - `FRONTEND_URL=` de Vercel URL van je frontend, bijvoorbeeld `https://zorggesprek-plus.vercel.app`
+   - `GOOGLE_APPLICATION_CREDENTIALS=` optioneel, alleen nodig voor speech features
+6. Deploy de service en kopieer daarna de Render basis-URL, bijvoorbeeld `https://zorggesprek-server.onrender.com`.
 
-## Stap 2: De Website Online Zetten (via Vercel)
-Nu zetten we de voorkant online en koppelen we deze aan je nieuwe server.
+## Stap 2: Frontend op Vercel
+1. Maak op [Vercel](https://vercel.com) een nieuw project van dezelfde repo.
+2. Kies **Vite** als framework preset.
+3. Voeg deze environment variables toe:
+   - `VITE_API_BASE=https://zorggesprek-server.onrender.com`
+   - `VITE_TURNSTILE_SITE_KEY=` je Cloudflare Turnstile site key
+4. Deploy het project.
 
-1.  Maak een gratis account op [Vercel.com](https://vercel.com).
-2.  Klik op **Add New** -> **Project**.
-3.  Importeer dezelfde GitHub repo.
-4.  Bij **Framework Preset** kies je `Vite`.
-5.  Bij **Environment Variables** voeg je toe:
-    *   Key: `VITE_API_URL`
-    *   Value: `https://zorggesprek-server.onrender.com/api/chat` (Plak hier de URL van Stap 1 en plak er `/api/chat` achter!).
-6.  Klik op **Deploy**.
+Gebruik bij `VITE_API_BASE` **geen** `/api/chat` of andere route suffix. De frontend spreekt zelf de juiste backendroutes aan.
 
-## Stap 3: Klaar!
-Vercel geeft je nu een link naar je website. Als je daar op klikt:
-1.  Laadt de site.
-2.  Stuurt hij verzoeken naar je Render-server.
-3.  Stuurt de Render-server ze door naar Claude.
-
-**Let op:** De gratis versie van Render gaat in 'slaapstand' als hij even niet gebruikt wordt. Het eerste verzoek kan daarom soms 30-50 seconden duren.
+## Stap 3: Verkeersstroom controleren
+Na deployment hoort de keten zo te lopen:
+1. De browser laadt de frontend vanaf Vercel.
+2. De frontend vraagt een sessietoken op via Render (`/api/session`).
+3. De frontend verstuurt gestructureerde AI-modes naar Render (`/api/ai-mode` en `/api/ai-mode/stream`).
+4. Alleen Render praat met Anthropic.
 
 ## Stap 4: Integratie met aizorgacademy.nl
-Nu de app draait (op bijv. Vercel), wil je hem op je eigen site hebben.
+**Subdomein**
+1. Maak bijvoorbeeld `oefenen.aizorgacademy.nl` aan.
+2. Zet een `CNAME` naar de Vercel-hostnaam.
+3. Voeg het domein toe in Vercel bij **Settings -> Domains**.
 
-**Optie A: Een Subdomein (Mooiste optie)**
-Je kunt bijvoorbeeld `oefenen.aizorgacademy.nl` aanmaken.
-1.  Ga naar de hosting van je domeinnaam (waar je je DNS beheert).
-2.  Maak een `CNAME` record aan met naam `oefenen` en verwijs deze naar de Vercel URL (bijv. `cname.vercel-dns.com`).
-3.  Voeg in Vercel bij **Settings -> Domains** het domein `oefenen.aizorgacademy.nl` toe.
-
-**Optie B: Insluiten (Makkelijkste optie)**
-Als je een WordPress of andere site hebt, kun je de bot op een pagina zetten met een `iframe` (een venster naar de app).
-Code voor op je pagina:
+**Iframe**
 ```html
-<iframe src="https://JOUW-VERCEL-LINK.vercel.app" width="100%" height="800px" frameborder="0" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+<iframe src="https://JOUW-VERCEL-LINK.vercel.app" width="100%" height="800" frameborder="0" style="border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 ```
+
+## Opmerking over slaapstand
+De gratis Render-tier kan in slaap vallen. Het eerste backendverzoek kan daardoor merkbaar trager zijn.
