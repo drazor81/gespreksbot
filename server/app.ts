@@ -8,6 +8,9 @@ import rateLimit from 'express-rate-limit';
 import { randomUUID } from 'crypto';
 import { createSessionToken, verifySessionToken } from './lib/session-tokens';
 import { verifyChallenge } from './lib/turnstile';
+import { aiModeRequestSchema } from '../src/shared/api-contract';
+import { buildModePayload } from './lib/mode-handlers';
+import { sessionStateStore } from './lib/session-state';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -154,6 +157,42 @@ export function createApp() {
     }
   });
 
+  app.post('/api/ai-mode', async (req: Request, res: Response) => {
+    const parsed = aiModeRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid AI mode request.' });
+      return;
+    }
+
+    const authHeader = req.get('authorization');
+    const secret = process.env.SESSION_TOKEN_SECRET;
+    if (!authHeader?.startsWith('Bearer ') || !secret) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const payload = await verifySessionToken(secret, authHeader.slice('Bearer '.length));
+      const sid = typeof payload.sid === 'string' ? payload.sid : randomUUID();
+      const built = buildModePayload({ sid, store: sessionStateStore, input: parsed.data });
+
+      const response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 1024,
+        system: built.systemPrompt,
+        messages: built.messages.map((message) => ({
+          role: message.role,
+          content: message.content
+        }))
+      });
+
+      const textContent = response.content.find((c) => c.type === 'text');
+      res.json({ response: textContent && 'text' in textContent ? textContent.text : 'Geen antwoord ontvangen.' });
+    } catch (error) {
+      console.error('Structured AI mode error:', error);
+      res.status(500).json({ error: 'Er ging iets mis met de AI. Probeer het opnieuw.' });
+    }
+  });
   app.post('/api/chat', async (req: Request, res: Response) => {
     try {
       const input = validateChatInput(req.body, res);
@@ -328,3 +367,5 @@ export function createApp() {
 
   return app;
 }
+
+

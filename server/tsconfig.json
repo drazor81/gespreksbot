@@ -7,9 +7,16 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "..",
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["./**/*.ts"]
+  "include": [
+    "./**/*.ts",
+    "../src/shared/**/*.ts",
+    "../src/config.ts",
+    "../src/types.ts",
+    "../src/knowledge/**/*.ts",
+    "../personas.json"
+  ]
 }
