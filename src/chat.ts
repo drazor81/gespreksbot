@@ -12,7 +12,6 @@ import {
   animateScreenEntry,
   setFeedbackTab,
   renderFeedbackExportSummary,
-  formatFeedback,
   getFeedbackScores,
   saveCurrentSessionToDashboard,
   getStudentTurnCount,
@@ -22,6 +21,7 @@ import {
 } from './ui';
 import { getKennisVoorLeerdoelen } from './knowledge';
 import { stopLiveConversation } from './speech';
+import { renderFeedbackSafe } from './security/render-feedback';
 
 
 export async function startScenarioFromSettings(): Promise<void> {
@@ -405,7 +405,8 @@ async function generateAIFeedback(): Promise<void> {
         summaryHtml + `<p class="feedback-error">Kon geen feedback genereren: ${escapeHtml(data.error)}</p>`;
     } else if (data.response) {
       state.latestFeedbackScores = getFeedbackScores(data.response);
-      feedbackContent.innerHTML = summaryHtml + formatFeedback(data.response);
+      feedbackContent.innerHTML = summaryHtml;
+      feedbackContent.appendChild(renderFeedbackSafe(data.response));
       const copyBtn = document.querySelector('#copy-feedback-btn') as HTMLButtonElement;
       if (copyBtn) copyBtn.style.display = 'inline-flex';
       saveCurrentSessionToDashboard();
@@ -503,5 +504,6 @@ export function printFeedback(): void {
   renderFeedbackExportSummary();
   window.print();
 }
+
 
 
