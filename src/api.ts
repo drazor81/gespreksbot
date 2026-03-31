@@ -1,5 +1,6 @@
 import { state } from './state';
 import type { AiModeRequest } from './shared/api-contract';
+import { getTurnstileChallengeToken } from './security/turnstile';
 
 export const API_BASE = import.meta.env.VITE_API_BASE || '';
 const SESSION_REFRESH_SKEW_MS = 30_000;
@@ -27,7 +28,6 @@ class UnauthorizedError extends Error {
 
 let sessionBootstrapPromise: Promise<string> | null = null;
 
-
 function hasValidSessionToken(): boolean {
   return Boolean(
     state.sessionToken &&
@@ -41,14 +41,10 @@ function clearSessionToken(): void {
   state.sessionTokenExpiresAt = null;
 }
 
-function resolveChallengeToken(): string {
-  const globalToken = (globalThis as typeof globalThis & { __TURNSTILE_TOKEN__?: string }).__TURNSTILE_TOKEN__;
-  if (typeof globalToken === 'string' && globalToken.trim()) {
-    return globalToken.trim();
-  }
-
-  if (import.meta.env.VITE_TURNSTILE_SITE_KEY) {
-    throw new Error('Challenge token ontbreekt. Vernieuw de beveiligingscheck en probeer opnieuw.');
+async function resolveChallengeToken(): Promise<string> {
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+  if (siteKey) {
+    return getTurnstileChallengeToken(siteKey);
   }
 
   return DEV_BYPASS_CHALLENGE_TOKEN;
@@ -113,7 +109,8 @@ export async function ensureSessionToken(): Promise<string> {
   }
 
   if (!sessionBootstrapPromise) {
-    sessionBootstrapPromise = bootstrapSession(resolveChallengeToken())
+    sessionBootstrapPromise = resolveChallengeToken()
+      .then((challengeToken) => bootstrapSession(challengeToken))
       .then((data) => {
         state.sessionToken = data.sessionToken;
         state.sessionTokenExpiresAt = Date.now() + data.expiresInSeconds * 1000;
@@ -266,5 +263,3 @@ export async function textToSpeech(text: string): Promise<Blob> {
     return response.blob();
   });
 }
-
-

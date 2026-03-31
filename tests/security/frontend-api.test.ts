@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildAiRequest, sendAiModeRequest, streamAiModeRequest } from '../../src/api';
+import { resetTurnstileForTests } from '../../src/security/turnstile';
 import { state } from '../../src/state';
 
 const baseSettings = {
@@ -16,6 +17,10 @@ describe('frontend ai api', () => {
   beforeEach(() => {
     state.sessionToken = null;
     state.sessionTokenExpiresAt = null;
+    document.body.innerHTML = '';
+    resetTurnstileForTests();
+    delete (globalThis as typeof globalThis & { turnstile?: unknown }).turnstile;
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
@@ -76,6 +81,56 @@ describe('frontend ai api', () => {
     const requestBody = JSON.parse(fetchMock.mock.calls[1][1]?.body as string) as Record<string, unknown>;
     expect(requestBody.mode).toBe('chat');
     expect(requestBody).not.toHaveProperty('systemPrompt');
+  });
+
+  it('uses a real Turnstile challenge token when a site key is configured', async () => {
+    vi.stubEnv('VITE_TURNSTILE_SITE_KEY', 'site-key');
+
+    let callback: ((token: string) => void) | undefined;
+    const turnstileMock = {
+      render: vi.fn((_target: string, options: { callback?: (token: string) => void }) => {
+        callback = options.callback;
+        return 'widget-id';
+      }),
+      execute: vi.fn(() => {
+        callback?.('turnstile-token');
+      }),
+      reset: vi.fn()
+    };
+
+    (globalThis as typeof globalThis & { turnstile?: typeof turnstileMock }).turnstile = turnstileMock;
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ sessionToken: 'session-token', expiresInSeconds: 900 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ response: 'Hallo terug' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await sendAiModeRequest(
+      buildAiRequest('chat', {
+        settings: { ...baseSettings },
+        history: [],
+        message: 'Hallo'
+      })
+    );
+
+    expect(result.response).toBe('Hallo terug');
+    expect(turnstileMock.render).toHaveBeenCalledOnce();
+    expect(turnstileMock.execute).toHaveBeenCalled();
+
+    const bootstrapBody = JSON.parse(fetchMock.mock.calls[0][1]?.body as string) as Record<string, string>;
+    expect(bootstrapBody.challengeToken).toBe('turnstile-token');
   });
 
   it('streams structured ai mode requests with bearer auth and no system prompt field', async () => {
