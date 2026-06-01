@@ -9,7 +9,7 @@ import helmet from 'helmet';
 import { randomUUID } from 'crypto';
 import { createSessionToken, verifySessionToken } from './lib/session-tokens';
 import { verifyChallenge } from './lib/turnstile';
-import { aiModeRequestSchema } from '../src/shared/api-contract';
+import { aiModeRequestSchema, type AiModeRequest } from '../src/shared/api-contract';
 import { buildModePayload } from './lib/mode-handlers';
 import { sessionStateStore } from './lib/session-state';
 
@@ -64,7 +64,16 @@ export function createApp() {
   app.use('/api/text-to-speech', speechLimiter);
   app.use('/api/', apiLimiter);
 
-  const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+  // Goedkoper model voor het patiënt-rollenspel (start/chat/stream),
+  // krachtiger model voor de didactische beoordeling (coach/feedback).
+  // ANTHROPIC_MODEL overschrijft beide tegelijk (backward compatible).
+  const CHAT_MODEL =
+    process.env.ANTHROPIC_MODEL_CHAT || process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
+  const FEEDBACK_MODEL =
+    process.env.ANTHROPIC_MODEL_FEEDBACK || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+
+  const pickModel = (mode: AiModeRequest['mode']): string =>
+    mode === 'coach' || mode === 'feedback' ? FEEDBACK_MODEL : CHAT_MODEL;
 
   const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
@@ -161,7 +170,7 @@ export function createApp() {
       const built = buildModePayload({ sid, store: sessionStateStore, input: parsed.data });
 
       const response = await anthropic.messages.create({
-        model: MODEL,
+        model: pickModel(parsed.data.mode),
         max_tokens: 1024,
         system: built.systemPrompt,
         messages: built.messages
@@ -197,7 +206,7 @@ export function createApp() {
       });
 
       const stream = anthropic.messages.stream({
-        model: MODEL,
+        model: pickModel(parsed.data.mode),
         max_tokens: 1024,
         system: built.systemPrompt,
         messages: built.messages

@@ -88,7 +88,9 @@ From `rules/`:
 ## Environment Variables
 
 - `ANTHROPIC_API_KEY` - Required for backend
-- `ANTHROPIC_MODEL` - Optional, defaults to claude-sonnet-4-20250514
+- `ANTHROPIC_MODEL` - Optional, overrides both models below at once (backward compatible)
+- `ANTHROPIC_MODEL_CHAT` - Optional, model for patient role-play (start/chat/stream), defaults to claude-haiku-4-5-20251001
+- `ANTHROPIC_MODEL_FEEDBACK` - Optional, model for didactic assessment (coach/feedback), defaults to claude-sonnet-4-20250514
 - `GOOGLE_APPLICATION_CREDENTIALS` - Optional, enables speech features
 - `FRONTEND_URL` - Comma-separated allowed origins for CORS
 - `SESSION_TOKEN_SECRET` - Secret used to sign short-lived session tokens
