@@ -141,7 +141,8 @@ export function createApp() {
     }
 
     try {
-      await verifySessionToken(secret, authHeader.slice('Bearer '.length));
+      const payload = await verifySessionToken(secret, authHeader.slice('Bearer '.length));
+      res.locals.sessionSid = typeof payload.sid === 'string' ? payload.sid : undefined;
       next();
     } catch {
       res.status(401).json({ error: 'Unauthorized' });
@@ -155,26 +156,15 @@ export function createApp() {
       return;
     }
 
-    const authHeader = req.get('authorization');
-    const secret = process.env.SESSION_TOKEN_SECRET;
-    if (!authHeader?.startsWith('Bearer ') || !secret) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
     try {
-      const payload = await verifySessionToken(secret, authHeader.slice('Bearer '.length));
-      const sid = typeof payload.sid === 'string' ? payload.sid : randomUUID();
+      const sid = typeof res.locals.sessionSid === 'string' ? res.locals.sessionSid : randomUUID();
       const built = buildModePayload({ sid, store: sessionStateStore, input: parsed.data });
 
       const response = await anthropic.messages.create({
         model: MODEL,
         max_tokens: 1024,
         system: built.systemPrompt,
-        messages: built.messages.map((message) => ({
-          role: message.role,
-          content: message.content
-        }))
+        messages: built.messages
       });
 
       const textContent = response.content.find((c) => c.type === 'text');
@@ -192,16 +182,8 @@ export function createApp() {
       return;
     }
 
-    const authHeader = req.get('authorization');
-    const secret = process.env.SESSION_TOKEN_SECRET;
-    if (!authHeader?.startsWith('Bearer ') || !secret) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
     try {
-      const payload = await verifySessionToken(secret, authHeader.slice('Bearer '.length));
-      const sid = typeof payload.sid === 'string' ? payload.sid : randomUUID();
+      const sid = typeof res.locals.sessionSid === 'string' ? res.locals.sessionSid : randomUUID();
       const built = buildModePayload({ sid, store: sessionStateStore, input: parsed.data });
 
       res.setHeader('Content-Type', 'text/event-stream');
@@ -218,10 +200,7 @@ export function createApp() {
         model: MODEL,
         max_tokens: 1024,
         system: built.systemPrompt,
-        messages: built.messages.map((message) => ({
-          role: message.role,
-          content: message.content
-        }))
+        messages: built.messages
       });
 
       let fullText = '';
@@ -267,7 +246,6 @@ export function createApp() {
         res.status(400).json({ error: 'Geen audiobestand ontvangen.' });
         return;
       }
-
 
       const audioBytes = req.file.buffer.toString('base64');
 
@@ -380,11 +358,4 @@ export function createApp() {
 
   return app;
 }
-
-
-
-
-
-
-
 

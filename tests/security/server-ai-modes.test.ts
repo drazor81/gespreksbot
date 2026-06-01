@@ -96,4 +96,21 @@ describe('buildModePayload', () => {
 
     expect(response.status).toBe(400);
   });
+
+  it('passes a valid session token through auth and sid wiring to the model call', async () => {
+    process.env.SESSION_AUTH_MODE = 'development';
+    process.env.SESSION_TOKEN_SECRET = '12345678901234567890123456789012';
+    delete process.env.ANTHROPIC_API_KEY;
+    const token = await createSessionToken(process.env.SESSION_TOKEN_SECRET, 'session-happy');
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/ai-mode')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ mode: 'start', settings: { ...baseSettings }, history: [] });
+
+    // Auth passes (not 401) and the body parses (not 400); buildModePayload reads the sid from
+    // res.locals without throwing, so only the model call fails on the missing key -> 500.
+    expect(response.status).toBe(500);
+  });
 });
