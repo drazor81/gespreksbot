@@ -28,3 +28,11 @@ dist-ssr
 
 # Windows device names
 nul
+
+# Local tooling state & generated output
+.omc/
+output/
+tmp/
+entities.json
+mempalace.yaml
+.claude/settings.local.json
