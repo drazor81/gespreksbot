@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p docs/reference docs/prompts)",
+      "Bash(git mv *)"
+    ]
+  }
+}

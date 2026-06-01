@@ -101,4 +101,4 @@ From `rules/`:
 
 - **Backend**: Render.com (root directory: `server`)
 - **Frontend**: Vercel with `VITE_API_BASE` pointing to the Render origin; only Render processes AI calls
-- See `DEPLOY.md` for detailed instructions
+- See `docs/DEPLOY.md` for detailed instructions

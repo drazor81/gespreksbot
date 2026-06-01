@@ -72,7 +72,7 @@ Toegestane hostnames:
 
 Gebruik voor terugkerende productiechecks en incident-signalen:
 
-- [operations.md](C:/Obsidian vault/Gespreksbot/operations.md)
+- [operations.md](../operations.md)
 
 ## Conclusie
 
