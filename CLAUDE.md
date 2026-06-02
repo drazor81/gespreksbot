@@ -43,7 +43,10 @@ Vanilla TypeScript with Vite bundling. No framework - direct DOM manipulation.
 - **types.ts** - TypeScript interfaces (Scenario, Persona, DashboardSession, etc.)
 - **voice.ts** / **speech.ts** - Web Speech API and Google Cloud Speech integration
 - **security/** - Safe DOM renderers and frontend security helpers
-- **knowledge/** - JSON files containing conversation techniques with rubrics, examples, coach tips
+- **knowledge/** - JSON files containing conversation techniques with rubrics, examples, coach tips (incl. `soep.json` for the SOEP structure rubric)
+- **speech-recognition.ts** - Reusable Web Speech API factory (`createSpeechRecognition`), shared by the voice overlay and the SOEP mode
+- **soep/** - SOEP reporting practice mode: `soep-state.ts`, `soep-ui.ts`, `soep-flow.ts`, `soep-api.ts`
+- **shared/** - Cross-tier contracts: `api-contract.ts`, `soep-contract.ts` (request schema + `PublicSoepCasus`), `soep-settings.ts` (zod-free werkveldlijst, importable by the frontend without bundling zod), `soep-casussen.ts` (server-only casus data with hidden answer keys)
 
 ### Backend (server/)
 Express.js API server with separate package.json and node_modules.
@@ -51,7 +54,7 @@ Express.js API server with separate package.json and node_modules.
 - **app.ts** - Express app with CORS, Helmet, rate limiting, session auth and Anthropic integration
 - **index.ts** - Loads environment variables and starts the Express app
 - **prompts/** - Server-owned prompt templates for patient simulation and feedback generation
-- Endpoints: `/api/session`, `/api/ai-mode`, `/api/ai-mode/stream`, `/api/speech-to-text`, `/api/text-to-speech`
+- Endpoints: `/api/session`, `/api/ai-mode`, `/api/ai-mode/stream`, `/api/speech-to-text`, `/api/text-to-speech`, `/api/soep-mode`, `/api/soep-casussen`, `/api/soep-casus` (genereert een casus, niveau 4)
 - Google Cloud Speech/TTS initialized only if `GOOGLE_APPLICATION_CREDENTIALS` is set
 
 ### Knowledge Base (src/knowledge/)
@@ -76,6 +79,11 @@ All state lives in a single `AppState` object exported from `state.ts`. UI updat
 ### Collega Mode
 When archetype is "Collega", the app switches to colleague-to-colleague mode (SBAR handoffs, etc.) with different prompt context via `getCollegaContext()`.
 
+### SOEP Mode (spraakgestuurd rapporteren)
+A second practice mode, reachable from the home screen. `setAppMode`/`showScreen` in `ui.ts` toggle between `home` / `setup` / `chat` / `feedback` / `soep` (visibility is imperative via `style.display`; mode-classes only set max-width). Students pick a fictional casus, speak a SOEP report (Subjectief/Objectief/Evaluatie/Plan) via the browser Web Speech API, and get formative, coaching feedback (oefenstand) weighted 70% speech technique / 30% SOEP structure. Flow lives in `src/soep/soep-flow.ts`. Backend: `POST /api/soep-mode` (validated by `soepModeRequestSchema`, a discriminated union on `actie: 'ordenen' | 'feedback'`) routes through `buildSoepPayload` in `server/lib/soep-handlers.ts`, always on `FEEDBACK_MODEL`; transcripts are sanitized against `<!--SCORES-->` injection. Hidden casus data (ijkpunten, valkuilen, foutconcepten, correct ordering) stays server-side in `src/shared/soep-casussen.ts`; the browser only receives `PublicSoepCasus` via `GET /api/soep-casussen`. MVP covers oefenladder niveau 1-4; niveau 5 (AI-foutdetectie) and 6 (privacy/context) are future phases.
+
+On **niveau 4** students can also generate a fresh casus (werkveld + lengte) via `POST /api/soep-casus` (separate `soepGenereerLimiter`, generated on `SOEP_GENEREER_MODEL` which defaults to `CHAT_MODEL`). The vaste bank stays selectable alongside it. The generated casus's hidden ijkpunten travel back to the feedback call inside an **encrypted JWE "casus-ticket"** (`server/lib/soep-ticket.ts` — `dir`/A256GCM, key = `sha256(SESSION_TOKEN_SECRET)`, 4h TTL) so anti-spieken holds without server state; the browser only ever sees `PublicSoepCasus` + opaque ticket. `feedbackRequestSchema` accepts either `casusId` (bankcasus) or `casusTicket` (generated), enforced by a `superRefine` (exactly one; a ticket implies niveau 4). The route resolves either into a `SoepCasus` via `resolveSoepCasus` before calling `buildSoepPayload(request, casus)`; the model's JSON casus is validated by `parseGegenereerdeCasus` (502 on garbage). Generated casussen are niveau-4-only (no `ordenItems`); switching to niveau 1-3 falls back to a bankcasus.
+
 ### DOM Structure
 UI is rendered as one large HTML string in `initUI()`, then event listeners are attached. Modals use `showModal(id)` / `hideModal(id)` pattern.
 
@@ -91,6 +99,7 @@ From `rules/`:
 - `ANTHROPIC_MODEL` - Optional, overrides both models below at once (backward compatible)
 - `ANTHROPIC_MODEL_CHAT` - Optional, model for patient role-play (start/chat/stream), defaults to claude-haiku-4-5-20251001
 - `ANTHROPIC_MODEL_FEEDBACK` - Optional, model for didactic assessment (coach/feedback), defaults to claude-sonnet-4-20250514
+- `ANTHROPIC_MODEL_SOEP_GENEREER` - Optional, model for SOEP casus generation (niveau 4), defaults to `CHAT_MODEL` (Haiku)
 - `GOOGLE_APPLICATION_CREDENTIALS` - Optional, enables speech features
 - `FRONTEND_URL` - Comma-separated allowed origins for CORS
 - `SESSION_TOKEN_SECRET` - Secret used to sign short-lived session tokens

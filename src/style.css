@@ -1,27 +1,31 @@
 :root {
-  /* Brand Colors from Style Guide */
-  --brand: #3b82b6;
-  --brand-alt: #00b7c3;
-  --primary: #f97316;
-  --primary-hover: #ea580c;
-  --secondary: #1e3a5f;
-  --secondary-light: #2d4a6f;
+  /* Brand Colors — AI Zorg Academy huisstijl */
+  --brand: #0077b6;
+  --brand-alt: #00b4d8;
+  --primary: #ff6b35;
+  --primary-hover: #e05520;
+  --secondary: #1b263b;
+  --secondary-light: #2d3b52;
+
+  /* Accent (AI Zorg Academy) */
+  --lichtblauw: #00b4d8;
+  --groen: #2e7d32;
 
   /* Text Colors */
-  --text-primary: #1e3a5f;
-  --text-secondary: #5a7184;
-  --text-muted: #6b7b8d;
+  --text-primary: #1b263b;
+  --text-secondary: #475569;
+  --text-muted: #6b7280;
   --text-white: #ffffff;
 
   /* Background Colors */
-  --bg-main: #f8fafc;
+  --bg-main: #f0f4f8;
   --bg-card: #ffffff;
   --bg-subtle: #f1f5f9;
   --bg-chat: #f8fafc;
 
   /* Border */
-  --border: #e2e8f0;
-  --border-light: #f1f5f9;
+  --border: #e0e0e0;
+  --border-light: #eef2f7;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(30, 58, 95, 0.05);
@@ -83,7 +87,9 @@ body {
 }
 
 #app.setup-mode,
-#app.feedback-mode {
+#app.feedback-mode,
+#app.home-mode,
+#app.soep-mode {
   max-width: 768px;
 }
 
@@ -93,9 +99,429 @@ body {
 
 @media (min-width: 1100px) {
   #app.setup-mode,
-  #app.feedback-mode {
+  #app.feedback-mode,
+  #app.home-mode,
+  #app.soep-mode {
     max-width: 1024px;
   }
+}
+
+/* === Home-scherm (moduskeuze) === */
+.home-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.home-titel {
+  text-align: center;
+  margin: 0.5rem 0;
+}
+.home-keuzes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .home-keuzes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.home-keuze-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    transform 0.1s;
+}
+.home-keuze-btn:hover {
+  border-color: var(--brand);
+  box-shadow: 0 4px 14px rgba(0, 119, 182, 0.15);
+  transform: translateY(-2px);
+}
+.home-keuze-icoon {
+  font-size: 1.75rem;
+}
+.home-keuze-naam {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+.home-keuze-uitleg {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* === SOEP-modus === */
+.soep-root {
+  padding: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--bg-main);
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.soep-root::-webkit-scrollbar {
+  width: 6px;
+}
+.soep-root::-webkit-scrollbar-track {
+  background: transparent;
+}
+.soep-root::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+.soep-root::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+.soep-kop {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.soep-terug-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+.soep-terug-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.soep-titel {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+.soep-privacy {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--lichtblauw);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+.soep-balk {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.soep-casus-keuze,
+.soep-niveau-keuze {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.soep-keuze-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-right: 0.25rem;
+}
+.soep-keuze-btn {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.soep-keuze-btn:hover {
+  border-color: var(--brand);
+}
+.soep-keuze-btn.actief {
+  background: var(--brand);
+  color: var(--text-white);
+  border-color: var(--brand);
+}
+.soep-keuze-btn--ai {
+  border-color: var(--lichtblauw);
+}
+.soep-keuze-btn--ai.actief {
+  background: var(--lichtblauw);
+  border-color: var(--lichtblauw);
+}
+.soep-genereer-paneel:empty {
+  display: none;
+}
+.soep-genereer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--lichtblauw);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+.soep-genereer-setting {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.soep-genereer-setting:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.soep-lengte-keuze {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.soep-lengte-btn {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.soep-lengte-btn:hover {
+  border-color: var(--brand);
+}
+.soep-lengte-btn.actief {
+  background: var(--brand);
+  color: var(--text-white);
+  border-color: var(--brand);
+}
+.soep-genereer-btn {
+  border: none;
+  background: var(--primary);
+  color: var(--text-white);
+  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.soep-genereer-btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+.soep-genereer-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.soep-casuskaart {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1rem;
+}
+.soep-casus-meta {
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  color: var(--brand);
+}
+.soep-casus-tekst {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.soep-oefengebied {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+.soep-orden-uitleg,
+.soep-voorbeeld {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.soep-voorbeeld {
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--lichtblauw);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+}
+.soep-orden-rij {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-card);
+}
+.soep-orden-tekst {
+  flex: 1 1 60%;
+  line-height: 1.4;
+}
+.soep-orden-keuzes {
+  display: flex;
+  gap: 0.3rem;
+}
+.soep-cat-btn {
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.soep-cat-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.soep-cat-btn.gekozen {
+  background: var(--brand);
+  color: var(--text-white);
+  border-color: var(--brand);
+}
+.soep-inspreek {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+.soep-inspreek-label {
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
+}
+.soep-inspreek-balk {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.soep-mic-btn {
+  border: 2px solid var(--brand);
+  color: var(--brand);
+  background: var(--bg-card);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.15s;
+}
+.soep-mic-btn:hover {
+  background: var(--brand);
+  color: var(--text-white);
+}
+.soep-mic-btn.opnemen {
+  background: #d64545;
+  border-color: #d64545;
+  color: var(--text-white);
+}
+.soep-mic-status {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.soep-inspreek-hint {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+.soep-textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem;
+  font: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+  color: var(--text-primary);
+}
+.soep-textarea:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+  border-color: var(--brand);
+}
+.soep-actiebalk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.soep-primair-btn {
+  background: var(--primary);
+  color: var(--text-white);
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.soep-primair-btn:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+.soep-primair-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.soep-secundair-btn {
+  background: var(--bg-card);
+  border: 2px solid var(--brand);
+  color: var(--brand);
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.soep-secundair-btn:hover {
+  background: var(--brand);
+  color: var(--text-white);
+}
+.soep-feedback:empty {
+  display: none;
+}
+.soep-feedback {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--lichtblauw);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+.soep-feedback-titel {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  color: var(--brand);
 }
 
 /* Header */

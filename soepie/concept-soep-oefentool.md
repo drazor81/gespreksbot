@@ -1,6 +1,8 @@
 # Concept: SOEP Spraakrapportage Oefentool
 *Versie 0.1 - verkenning*
 
+> **Let op (achterhaald als geheel):** dit is de eerste verkenning. Twee dingen zijn inmiddels herzien: (1) het is geen losse statische pagina met API-key in de browser, maar een modus binnen ZorgGesprek+ met de bestaande serverproxy; (2) de platte flow casus→inspreken→feedback is verbreed naar een **gefaseerde oefenladder** (ordenen → inspreken → AI-output corrigeren → contextscenario) met vier competenties. Zie [[CONTEXT]] voor de actuele koers en [[Kennisrapport_spraakgestuurd_rapporteren_SOEP_oefenbot]] voor de onderbouwing. De casussen en feedbacktoon hieronder blijven bruikbaar als basis.
+
 ---
 
 ## Kernidee

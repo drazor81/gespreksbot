@@ -12,6 +12,18 @@ import { verifyChallenge } from './lib/turnstile';
 import { aiModeRequestSchema, type AiModeRequest } from '../src/shared/api-contract';
 import { buildModePayload } from './lib/mode-handlers';
 import { sessionStateStore } from './lib/session-state';
+import { soepGenereerRequestSchema, soepModeRequestSchema } from '../src/shared/soep-contract';
+import { getPublicSoepCasussen } from '../src/shared/soep-casussen';
+import {
+  buildGenereerdeCasusResponse,
+  buildGenereerSystemPrompt,
+  buildSoepPayload,
+  parseGegenereerdeCasus,
+  resolveSoepCasus,
+  SoepCasusNotFoundError,
+  SoepGeneratieError
+} from './lib/soep-handlers';
+import { SoepTicketError } from './lib/soep-ticket';
 
 const ALLOWED_AUDIO_MIME_TYPES = new Set(['audio/webm', 'audio/ogg', 'audio/wav', 'audio/mpeg', 'audio/mp4']);
 
@@ -26,6 +38,9 @@ function createRateLimiter(max: number, windowMs: number, message: string) {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => normalizeRateLimitKey(req.ip),
+    // normalizeRateLimitKey past al ipKeyGenerator toe (correcte IPv6-normalisatie);
+    // de heuristische validator ziet dat niet door de wrapper heen → die ene check uitzetten.
+    validate: { keyGeneratorIpFallback: false },
     message: { error: message }
   });
 }
@@ -57,20 +72,33 @@ export function createApp() {
 
   const apiLimiter = createRateLimiter(20, 60 * 1000, 'Te veel verzoeken. Probeer het over een minuut opnieuw.');
   const sessionLimiter = createRateLimiter(8, 10 * 60 * 1000, 'Te veel sessieverzoeken. Probeer later opnieuw.');
-  const speechLimiter = createRateLimiter(10, 60 * 1000, 'Te veel spraakverzoeken. Probeer het over een minuut opnieuw.');
+  const speechLimiter = createRateLimiter(
+    10,
+    60 * 1000,
+    'Te veel spraakverzoeken. Probeer het over een minuut opnieuw.'
+  );
+  const soepLimiter = createRateLimiter(12, 60 * 1000, 'Te veel SOEP-verzoeken. Probeer het over een minuut opnieuw.');
+  const soepGenereerLimiter = createRateLimiter(
+    6,
+    60 * 1000,
+    'Te veel casusverzoeken. Probeer het over een minuut opnieuw.'
+  );
 
   app.use('/api/session', sessionLimiter);
   app.use('/api/speech-to-text', speechLimiter);
   app.use('/api/text-to-speech', speechLimiter);
+  app.use('/api/soep-mode', soepLimiter);
+  app.use('/api/soep-casus', soepGenereerLimiter);
   app.use('/api/', apiLimiter);
 
   // Goedkoper model voor het patiënt-rollenspel (start/chat/stream),
   // krachtiger model voor de didactische beoordeling (coach/feedback).
   // ANTHROPIC_MODEL overschrijft beide tegelijk (backward compatible).
-  const CHAT_MODEL =
-    process.env.ANTHROPIC_MODEL_CHAT || process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
+  const CHAT_MODEL = process.env.ANTHROPIC_MODEL_CHAT || process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
   const FEEDBACK_MODEL =
     process.env.ANTHROPIC_MODEL_FEEDBACK || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+  // Casusgeneratie (niveau 4) draait standaard op het goedkope CHAT_MODEL; override met env indien nodig.
+  const SOEP_GENEREER_MODEL = process.env.ANTHROPIC_MODEL_SOEP_GENEREER || CHAT_MODEL;
 
   const pickModel = (mode: AiModeRequest['mode']): string =>
     mode === 'coach' || mode === 'feedback' ? FEEDBACK_MODEL : CHAT_MODEL;
@@ -329,6 +357,89 @@ export function createApp() {
     }
   });
 
+  app.get('/api/soep-casussen', (_req: Request, res: Response) => {
+    res.json({ casussen: getPublicSoepCasussen() });
+  });
+
+  app.post('/api/soep-mode', async (req: Request, res: Response) => {
+    const parsed = soepModeRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Ongeldig SOEP-verzoek.' });
+      return;
+    }
+
+    const secret = process.env.SESSION_TOKEN_SECRET;
+    if (!secret) {
+      res.status(500).json({ error: 'SESSION_TOKEN_SECRET is not configured.' });
+      return;
+    }
+
+    try {
+      const casus = await resolveSoepCasus(parsed.data, secret);
+      const built = buildSoepPayload(parsed.data, casus);
+
+      const response = await anthropic.messages.create({
+        model: FEEDBACK_MODEL,
+        max_tokens: 1024,
+        system: built.systemPrompt,
+        messages: built.messages
+      });
+
+      const textContent = response.content.find((c) => c.type === 'text');
+      res.json({ response: textContent && 'text' in textContent ? textContent.text : 'Geen antwoord ontvangen.' });
+    } catch (error) {
+      if (error instanceof SoepCasusNotFoundError) {
+        res.status(400).json({ error: 'Onbekende casus.' });
+        return;
+      }
+      if (error instanceof SoepTicketError) {
+        res.status(400).json({ error: 'Deze gegenereerde casus is verlopen of ongeldig. Genereer een nieuwe casus.' });
+        return;
+      }
+      // Log alleen de fout, nooit de (transcript-)payload.
+      console.error('SOEP mode error:', error);
+      res.status(500).json({ error: 'Er ging iets mis met de AI. Probeer het opnieuw.' });
+    }
+  });
+
+  app.post('/api/soep-casus', async (req: Request, res: Response) => {
+    const parsed = soepGenereerRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Ongeldig generatieverzoek.' });
+      return;
+    }
+
+    const secret = process.env.SESSION_TOKEN_SECRET;
+    if (!secret) {
+      res.status(500).json({ error: 'SESSION_TOKEN_SECRET is not configured.' });
+      return;
+    }
+
+    try {
+      const systemPrompt = buildGenereerSystemPrompt(parsed.data.setting, parsed.data.lengte);
+      const response = await anthropic.messages.create({
+        model: SOEP_GENEREER_MODEL,
+        max_tokens: parsed.data.lengte === 'uitgebreid' ? 2200 : 1200,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: 'Genereer nu de casus als JSON.' }]
+      });
+
+      const textContent = response.content.find((c) => c.type === 'text');
+      const tekst = textContent && 'text' in textContent ? textContent.text : '';
+      // Forceer de gekozen setting; vertrouw niet op de echo van het model.
+      const gegenereerd = { ...parseGegenereerdeCasus(tekst), setting: parsed.data.setting };
+      const payload = await buildGenereerdeCasusResponse(secret, gegenereerd);
+      res.json(payload);
+    } catch (error) {
+      if (error instanceof SoepGeneratieError) {
+        res.status(502).json({ error: 'De AI gaf geen bruikbare casus. Probeer het opnieuw.' });
+        return;
+      }
+      console.error('SOEP genereer error:', error);
+      res.status(500).json({ error: 'Er ging iets mis met de AI. Probeer het opnieuw.' });
+    }
+  });
+
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: 'Niet gevonden.' });
   });
@@ -367,4 +478,3 @@ export function createApp() {
 
   return app;
 }
-
