@@ -22,6 +22,7 @@ import {
 } from './chat';
 import { startLiveConversation, stopLiveConversation } from './speech';
 import { openVoiceOverlay, isWebSpeechSupported } from './voice';
+import { initSoepFlow } from './soep/soep-flow';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -301,9 +302,47 @@ function buildLeerdoelSelectionHtml(): string {
   ).join('');
 }
 
-export function setAppMode(mode: 'setup' | 'chat' | 'feedback'): void {
-  app.classList.remove('setup-mode', 'chat-mode', 'feedback-mode');
+export type AppScreen = 'home' | 'setup' | 'chat' | 'feedback' | 'soep';
+
+export function setAppMode(mode: AppScreen): void {
+  app.classList.remove('home-mode', 'setup-mode', 'chat-mode', 'feedback-mode', 'soep-mode');
   app.classList.add(`${mode}-mode`);
+}
+
+const SCREEN_DISPLAY: Record<AppScreen, { id: string; display: string }[]> = {
+  home: [{ id: 'home-screen', display: 'flex' }],
+  setup: [{ id: 'setup-screen', display: '' }],
+  soep: [{ id: 'soep-root', display: 'block' }],
+  chat: [
+    { id: 'chat-session-meta', display: 'flex' },
+    { id: 'chat-container', display: 'flex' },
+    { id: 'input-area', display: 'flex' }
+  ],
+  feedback: [{ id: 'feedback-screen', display: 'flex' }]
+};
+
+const ALLE_SCREEN_IDS = [
+  'home-screen',
+  'setup-screen',
+  'soep-root',
+  'chat-session-meta',
+  'chat-container',
+  'input-area',
+  'feedback-screen'
+];
+
+// Centrale schermwissel. Deze app regelt zichtbaarheid imperatief via style.display
+// (de mode-classes regelen alleen de max-width). Verberg eerst alles, toon dan het doelscherm.
+export function showScreen(screen: AppScreen): void {
+  for (const id of ALLE_SCREEN_IDS) {
+    const node = document.querySelector(`#${id}`) as HTMLElement | null;
+    if (node) node.style.display = 'none';
+  }
+  for (const { id, display } of SCREEN_DISPLAY[screen]) {
+    const node = document.querySelector(`#${id}`) as HTMLElement | null;
+    if (node) node.style.display = display;
+  }
+  setAppMode(screen);
 }
 
 export function animateScreenEntry(selector: string): void {
@@ -537,9 +576,7 @@ export function showConfirmDialog(message: string): Promise<boolean> {
 }
 
 export function prepareChat() {
-  setAppMode('chat');
-  const feedbackScreen = document.querySelector('#feedback-screen') as HTMLDivElement | null;
-  if (feedbackScreen) feedbackScreen.style.display = 'none';
+  showScreen('chat');
   setFeedbackTab('feedback');
   const input = document.querySelector('#user-input') as HTMLInputElement | null;
   const submitBtn = document.querySelector('#input-form button[type="submit"]') as HTMLButtonElement | null;
@@ -548,10 +585,6 @@ export function prepareChat() {
     input.placeholder = 'Typ je bericht...';
   }
   if (submitBtn) submitBtn.disabled = false;
-  document.querySelector<HTMLDivElement>('#setup-screen')!.style.display = 'none';
-  document.querySelector<HTMLDivElement>('#chat-session-meta')!.style.display = 'flex';
-  document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'flex';
-  document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'flex';
   animateScreenEntry('#chat-session-meta');
   animateScreenEntry('#chat-container');
   animateScreenEntry('#input-area');
@@ -608,7 +641,23 @@ export function initUI(): void {
         <button type="button" id="reset-btn">Reset</button>
       </div>
     </header>
-    <div id="setup-screen" class="scenario-selector">
+    <div id="home-screen" class="home-screen" style="display: none;">
+      <h2 class="home-titel">Waarmee wil je oefenen?</h2>
+      <div class="home-keuzes">
+        <button type="button" id="home-gesprek-btn" class="home-keuze-btn">
+          <span class="home-keuze-icoon">💬</span>
+          <span class="home-keuze-naam">Gesprek oefenen</span>
+          <span class="home-keuze-uitleg">Oefen gesprekstechnieken met een AI-cliënt.</span>
+        </button>
+        <button type="button" id="home-soep-btn" class="home-keuze-btn">
+          <span class="home-keuze-icoon">🎙️</span>
+          <span class="home-keuze-naam">Rapporteren oefenen (SOEP)</span>
+          <span class="home-keuze-uitleg">Spreek een SOEP-rapportage in en krijg feedback.</span>
+        </button>
+      </div>
+    </div>
+    <div id="soep-root" class="soep-root" style="display: none;"></div>
+    <div id="setup-screen" class="scenario-selector" style="display: none;">
       <div class="settings-panel">
         <h3>Instellingen</h3>
         <p class="setup-intro">Kies een scenario en pas daarna leerdoelen en niveau aan.</p>
@@ -985,7 +1034,15 @@ export function initUI(): void {
     setChecklistPanelVisibility(false);
   });
 
-  setAppMode('setup');
+  document.querySelector('#home-gesprek-btn')?.addEventListener('click', () => {
+    showScreen('setup');
+  });
+  document.querySelector('#home-soep-btn')?.addEventListener('click', () => {
+    showScreen('soep');
+    void initSoepFlow(() => showScreen('home'));
+  });
+
+  showScreen('home');
   setFeedbackTab('feedback');
   renderFeedbackExportSummary();
   updateConversationActionButtons();

@@ -8,7 +8,7 @@ import {
   prepareChat,
   updateChatSessionMeta,
   showToast,
-  setAppMode,
+  showScreen,
   animateScreenEntry,
   setFeedbackTab,
   renderFeedbackExportSummary,
@@ -428,13 +428,8 @@ export async function showFeedback(): Promise<void> {
     return;
   }
 
-  setAppMode('feedback');
-  document.querySelector<HTMLDivElement>('#chat-session-meta')!.style.display = 'none';
-  document.querySelector<HTMLDivElement>('#chat-container')!.style.display = 'none';
-  document.querySelector<HTMLDivElement>('#input-area')!.style.display = 'none';
+  showScreen('feedback');
   updateChatSessionMeta();
-  const feedbackScreen = document.querySelector<HTMLDivElement>('#feedback-screen')!;
-  feedbackScreen.style.display = 'flex';
   animateScreenEntry('#feedback-screen');
   setFeedbackTab('feedback');
   renderFeedbackExportSummary();

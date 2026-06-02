@@ -1,0 +1,60 @@
+{
+  "id": "SOEP",
+  "naam": "SOEP: gestructureerd rapporteren",
+  "korteUitleg": "Een methode om een zorgmoment kort en gestructureerd te rapporteren: Subjectief, Objectief, Evaluatie, Plan. Veel gebruikt in het ECD.",
+  "uitgebreideTheorie": "SOEP komt uit de probleemgerichte verslaglegging en wordt in de zorg gebruikt om een observatie of contactmoment compact vast te leggen. De vier letters dwingen je om feit en mening te scheiden, en om af te sluiten met een concrete vervolgstap.\n\nS (Subjectief): wat de cliënt zelf aangeeft, in zijn of haar eigen beleving. Klachten, gevoelens, wat iemand zegt.\nO (Objectief): wat jij waarneemt en meet. Feiten, observaties, metingen. Geen interpretatie.\nE (Evaluatie): jouw inschatting op basis van S en O. Wat betekenen die bevindingen samen?\nP (Plan): wat ga je doen of voorstellen. Een concrete, opvolgbare actie.\n\nDe kracht van SOEP zit in het scheiden van wat de cliënt zegt (S) en wat jij ziet (O), en het onderbouwen van je inschatting (E) voordat je een plan (P) maakt.",
+  "technieken": {
+    "Subjectief": "Wat geeft de cliënt zelf aan? Klachten, gevoelens en beleving in de eigen woorden van de cliënt.",
+    "Objectief": "Wat neem ik waar en meet ik? Feitelijke observaties en metingen, zonder interpretatie.",
+    "Evaluatie": "Wat is mijn inschatting op basis van S en O? Onderbouwd vanuit de feiten en de beleving.",
+    "Plan": "Wat ga ik doen of voorstellen? Een concrete, opvolgbare vervolgactie."
+  },
+  "voorbeeldenGoed": [
+    "Mevrouw geeft aan vannacht slecht geslapen te hebben door pijn in haar linkerbeen.",
+    "Bij inspectie zie ik een rode plek op het scheenbeen, ongeveer zo groot als een twee-euromunt. De huid voelt warm aan.",
+    "Mogelijk een beginnende ontsteking, mede doordat ze haar steunkousen niet heeft gedragen.",
+    "Ik heb dit doorgegeven aan de verpleegkundige en controleer de wond vanmiddag opnieuw."
+  ],
+  "voorbeeldenFout": [
+    "Uh ja, die mevrouw, eh, die had dus pijn ofzo aan haar been. (haperingen, omgangstaal, vaag)",
+    "Rood plekje been warm. (losse woorden, geen hele zin)",
+    "Ze deed een beetje zielig vandaag. (waardeoordeel, niet objectief)"
+  ],
+  "clientReactie": {
+    "bijGoed": "",
+    "bijFout": ""
+  },
+  "coachTips": [
+    "Let vooral op de inspreektechniek: vloeiendheid, hele zinnen, zakelijk taalgebruik.",
+    "Check daarnaast of S, O, E en P alle vier herkenbaar zijn.",
+    "Let op of feit (O) en mening (E) gescheiden blijven.",
+    "Geef altijd minstens één concreet sterk punt terug.",
+    "Geef maximaal één verbeterpunt techniek per keer, met een voorbeeldzin die laat zien hoe het beter kan."
+  ],
+  "rubric": [
+    {
+      "criterium": "Subjectief",
+      "onvoldoende": "Geen weergave van wat de cliënt zelf aangeeft",
+      "voldoende": "Noemt de beleving van de cliënt, maar onvolledig",
+      "goed": "Geeft helder weer wat de cliënt zelf aangeeft, in diens beleving"
+    },
+    {
+      "criterium": "Objectief",
+      "onvoldoende": "Geen eigen waarnemingen of metingen",
+      "voldoende": "Noemt enkele observaties, mist concrete metingen",
+      "goed": "Geeft concrete, feitelijke observaties en metingen, zonder interpretatie"
+    },
+    {
+      "criterium": "Evaluatie",
+      "onvoldoende": "Geen inschatting, of mening zonder onderbouwing",
+      "voldoende": "Doet een inschatting maar koppelt die los van S en O",
+      "goed": "Onderbouwt de inschatting duidelijk vanuit S en O"
+    },
+    {
+      "criterium": "Plan",
+      "onvoldoende": "Geen vervolgactie genoemd",
+      "voldoende": "Vaag plan zonder concrete actie",
+      "goed": "Concreet en opvolgbaar plan"
+    }
+  ]
+}

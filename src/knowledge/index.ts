@@ -7,6 +7,7 @@ import mgv from './mgv.json';
 import vierGModel from './4g-model.json';
 import deEscalatie from './de-escalatie.json';
 import starr from './starr.json';
+import soep from './soep.json';
 
 export interface RubricCriterium {
   criterium: string;
@@ -147,6 +148,13 @@ export function getTheorieVoorStudent(leerdoelen: string[]): string {
       return theorie;
     })
     .join('\n\n---\n\n');
+}
+
+// SOEP staat bewust LOS van het kennisbank-Record: het is geen gespreks-leerdoel
+// (het mag niet verschijnen in SETTINGS_OPTIONS.leerdoelen / getKennisVoorLeerdoelen),
+// maar wordt door de SOEP-rapportagemodus gebruikt voor de structuurrubriek en theorie.
+export function getSoepKennis(): Kennisitem {
+  return soep as Kennisitem;
 }
 
 export default kennisbank;

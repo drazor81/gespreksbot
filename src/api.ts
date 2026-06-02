@@ -63,7 +63,7 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
   return fallback;
 }
 
-async function throwForFailedResponse(response: Response, fallback: string): Promise<never> {
+export async function throwForFailedResponse(response: Response, fallback: string): Promise<never> {
   if (response.status === 401) {
     throw new UnauthorizedError();
   }
@@ -71,7 +71,7 @@ async function throwForFailedResponse(response: Response, fallback: string): Pro
   throw new Error(await parseErrorMessage(response, fallback));
 }
 
-async function withFreshSessionToken<T>(operation: (sessionToken: string) => Promise<T>): Promise<T> {
+export async function withFreshSessionToken<T>(operation: (sessionToken: string) => Promise<T>): Promise<T> {
   const run = async (allowRefresh: boolean): Promise<T> => {
     const sessionToken = await ensureSessionToken();
 

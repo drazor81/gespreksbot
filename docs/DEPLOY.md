@@ -11,13 +11,13 @@ Belangrijk: alleen **Render** verwerkt AI-verkeer. **Vercel host alleen de front
 2. Maak op [Render](https://render.com) een nieuwe **Web Service**.
 3. Koppel dezelfde repo.
 4. Gebruik deze instellingen:
-   - **Root Directory:** `server`
+   - **Root Directory:** _leeg laten_ (de repo-root). De backend is TypeScript en leunt op `src/` buiten de `server/`-map, dus hij draait vanaf de repo-root met `tsx`; een aparte buildstap is niet nodig.
    - **Environment:** `Node`
    - **Build Command:** `npm install`
-   - **Start Command:** `npm start`
+   - **Start Command:** `npm run server`
 5. Voeg minimaal deze environment variables toe:
    - `ANTHROPIC_API_KEY=sk-ant-...`
-   - `SESSION_TOKEN_SECRET=` een random geheim van minimaal 32 tekens
+   - `SESSION_TOKEN_SECRET=` een sterk, willekeurig geheim van minimaal 32 tekens. Dit ondertekent de sessietokens **én** versleutelt de SOEP-casus-tickets, dus kies een echt random waarde. Genereren: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`
    - `SESSION_AUTH_MODE=turnstile` voor productie, `development` alleen lokaal
    - `TURNSTILE_SECRET_KEY=` je Cloudflare Turnstile secret
    - `FRONTEND_URL=` de Vercel URL van je frontend, bijvoorbeeld `https://zorggesprek-plus.vercel.app`

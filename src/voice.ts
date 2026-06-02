@@ -2,45 +2,18 @@ import { state } from './state';
 import { buildAiRequest, streamAiModeRequest, textToSpeech } from './api';
 import { addMessage, updateChatSessionMeta, removeTypingIndicators, addTypingIndicator } from './ui';
 import { getSelectedSettingsSnapshot } from './chat';
+import { createSpeechRecognition, isWebSpeechSupported, type SpeechRecognitionHandle } from './speech-recognition';
+
+// Re-export zodat bestaande imports (ui.ts) ongewijzigd blijven werken.
+export { isWebSpeechSupported };
 
 type VoiceStatus = 'idle' | 'listening' | 'processing' | 'speaking';
 
-// SpeechRecognition types (vendor-prefixed in most browsers)
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognitionInstance extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((event: Event & { error: string }) => void) | null;
-  onaudiostart: (() => void) | null;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognitionInstance;
-    webkitSpeechRecognition: new () => SpeechRecognitionInstance;
-  }
-}
-
-let recognition: SpeechRecognitionInstance | null = null;
+let recognitionHandle: SpeechRecognitionHandle | null = null;
 let ttsQueue: string[] = [];
 let isPlayingTTS = false;
 const prefetchedAudio: Map<string, Blob> = new Map();
 let overlayEl: HTMLElement | null = null;
-let shouldRestartRecognition = false;
-
-export function isWebSpeechSupported(): boolean {
-  return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
-}
 
 function setVoiceStatus(status: VoiceStatus): void {
   state.voiceStatus = status;
@@ -133,13 +106,9 @@ export function openVoiceOverlay(): void {
 
 export function closeVoiceOverlay(): void {
   state.voiceOverlayActive = false;
-  shouldRestartRecognition = false;
 
-  if (recognition) {
-    recognition.onend = null;
-    recognition.abort();
-    recognition = null;
-  }
+  recognitionHandle?.abort();
+  recognitionHandle = null;
 
   stopCurrentAudio();
 
@@ -171,76 +140,45 @@ export function closeVoiceOverlay(): void {
 function startRecognition(): void {
   if (!state.voiceOverlayActive) return;
 
-  const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SpeechRecognitionClass();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'nl-NL';
-  shouldRestartRecognition = true;
-
-  recognition.onresult = (event: SpeechRecognitionEvent) => {
-    if (!state.voiceOverlayActive) return;
-
-    const transcriptEl = overlayEl?.querySelector('.voice-transcript') as HTMLElement;
-
-    if (state.voiceStatus === 'speaking') {
-      handleBargeIn();
-    }
-
-    let interimTranscript = '';
-    let finalTranscript = '';
-
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const result = event.results[i];
-      if (result.isFinal) {
-        finalTranscript += result[0].transcript;
-      } else {
-        interimTranscript += result[0].transcript;
-      }
-    }
-
-    if (transcriptEl) {
-      if (finalTranscript) {
-        transcriptEl.textContent = finalTranscript;
-        transcriptEl.classList.remove('interim');
-      } else if (interimTranscript) {
-        transcriptEl.textContent = interimTranscript;
+  recognitionHandle = createSpeechRecognition({
+    lang: 'nl-NL',
+    continuous: true,
+    interimResults: true,
+    autoRestart: true,
+    shouldRestart: () => state.voiceOverlayActive && state.voiceStatus !== 'processing',
+    onInterim: (transcript) => {
+      if (!state.voiceOverlayActive) return;
+      if (state.voiceStatus === 'speaking') handleBargeIn();
+      const transcriptEl = overlayEl?.querySelector('.voice-transcript') as HTMLElement;
+      if (transcriptEl) {
+        transcriptEl.textContent = transcript;
         transcriptEl.classList.add('interim');
       }
-    }
-
-    if (finalTranscript.trim()) {
-      handleUserSpeech(finalTranscript.trim());
-    }
-  };
-
-  recognition.onend = () => {
-    if (state.voiceOverlayActive && shouldRestartRecognition && state.voiceStatus !== 'processing') {
-      try {
-        recognition?.start();
-      } catch {
-        // May fail if already started
+    },
+    onFinal: (transcript) => {
+      if (!state.voiceOverlayActive) return;
+      if (state.voiceStatus === 'speaking') handleBargeIn();
+      const transcriptEl = overlayEl?.querySelector('.voice-transcript') as HTMLElement;
+      if (transcriptEl) {
+        transcriptEl.textContent = transcript;
+        transcriptEl.classList.remove('interim');
       }
+      handleUserSpeech(transcript);
+    },
+    onError: (error) => {
+      if (error === 'not-allowed') {
+        addMessage('Systeem', 'Microfoontoegang geweigerd. Sta microfoon toe in je browserinstellingen.', 'system');
+        closeVoiceOverlay();
+        return;
+      }
+      console.error('SpeechRecognition error:', error);
+    },
+    onStart: () => {
+      setVoiceStatus('listening');
     }
-  };
+  });
 
-  recognition.onerror = (event: Event & { error: string }) => {
-    if (event.error === 'aborted' || event.error === 'no-speech') return;
-    console.error('SpeechRecognition error:', event.error);
-    if (event.error === 'not-allowed') {
-      addMessage('Systeem', 'Microfoontoegang geweigerd. Sta microfoon toe in je browserinstellingen.', 'system');
-      closeVoiceOverlay();
-    }
-  };
-
-  try {
-    recognition.start();
-    setVoiceStatus('listening');
-  } catch (error) {
-    console.error('Failed to start SpeechRecognition:', error);
-    addMessage('Systeem', 'Kon spraakherkenning niet starten.', 'system');
-    closeVoiceOverlay();
-  }
+  recognitionHandle.start();
 }
 
 async function handleUserSpeech(transcript: string): Promise<void> {
@@ -249,12 +187,8 @@ async function handleUserSpeech(transcript: string): Promise<void> {
   setVoiceStatus('processing');
 
   // Stop recognition during processing to avoid picking up TTS audio
-  shouldRestartRecognition = false;
-  if (recognition) {
-    recognition.onend = null;
-    recognition.abort();
-    recognition = null;
-  }
+  recognitionHandle?.abort();
+  recognitionHandle = null;
 
   addMessage('Jij (Student)', transcript, 'student');
   state.conversationHistory.push({ role: 'user', content: transcript });
