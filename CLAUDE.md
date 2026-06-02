@@ -111,6 +111,6 @@ From `rules/`:
 
 ## Deployment
 
-- **Backend**: Render.com (root directory: `server`)
+- **Backend**: Render.com — Root Directory leeg (repo-root), Build `npm install`, Start `npm run server` (tsx; geen buildstap). Auto-deploy vanaf `main`.
 - **Frontend**: Vercel with `VITE_API_BASE` pointing to the Render origin; only Render processes AI calls
 - See `docs/DEPLOY.md` for detailed instructions
