@@ -24,9 +24,10 @@ npm run format:check # Prettier check
 npm run server:check # TypeScript check server only
 ```
 
-### Server (standalone)
+### Server (productie)
+De backend draait vanaf de **repo-root** via `tsx` (hij importeert `src/` buiten `server/`, dus `cd server && npm start` werkt NIET):
 ```bash
-cd server && npm install && npm start  # Production server
+npm install && npm run server  # tsx server/index.ts, luistert op $PORT (default 3001)
 ```
 
 ## Architecture
