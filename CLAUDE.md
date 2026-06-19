@@ -99,7 +99,7 @@ From `rules/`:
 - `ANTHROPIC_API_KEY` - Required for backend
 - `ANTHROPIC_MODEL` - Optional, overrides both models below at once (backward compatible)
 - `ANTHROPIC_MODEL_CHAT` - Optional, model for patient role-play (start/chat/stream), defaults to claude-haiku-4-5-20251001
-- `ANTHROPIC_MODEL_FEEDBACK` - Optional, model for didactic assessment (coach/feedback), defaults to claude-sonnet-4-20250514
+- `ANTHROPIC_MODEL_FEEDBACK` - Optional, model for didactic assessment (coach/feedback), defaults to claude-sonnet-4-6
 - `ANTHROPIC_MODEL_SOEP_GENEREER` - Optional, model for SOEP casus generation (niveau 4), defaults to `CHAT_MODEL` (Haiku)
 - `GOOGLE_APPLICATION_CREDENTIALS` - Optional, enables speech features
 - `FRONTEND_URL` - Comma-separated allowed origins for CORS

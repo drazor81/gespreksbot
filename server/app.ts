@@ -100,13 +100,42 @@ export function createApp() {
   // Casusgeneratie (niveau 4) draait standaard op het goedkope CHAT_MODEL; override met env indien nodig.
   const SOEP_GENEREER_MODEL = process.env.ANTHROPIC_MODEL_SOEP_GENEREER || CHAT_MODEL;
 
-  const pickModel = (mode: AiModeRequest['mode']): string =>
-    mode === 'coach' || mode === 'feedback' ? FEEDBACK_MODEL : CHAT_MODEL;
-
   const anthropic = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
     timeout: 30000
   });
+
+  // Fallback-ketens: faseert Anthropic het ingestelde model uit (404), dan schakelt
+  // de server door naar het volgende bekend-werkende model i.p.v. te crashen. De
+  // ongedateerde alias achteraan is het vangnet (gaat het langst mee).
+  const uniq = (...m: string[]): string[] => [...new Set(m)];
+  const CHAT_CHAIN = uniq(CHAT_MODEL, 'claude-haiku-4-5');
+  const FEEDBACK_CHAIN = uniq(FEEDBACK_MODEL, 'claude-sonnet-4-6', 'claude-haiku-4-5');
+  const SOEP_GENEREER_CHAIN = uniq(SOEP_GENEREER_MODEL, 'claude-haiku-4-5');
+
+  const pickChain = (mode: AiModeRequest['mode']): string[] =>
+    mode === 'coach' || mode === 'feedback' ? FEEDBACK_CHAIN : CHAT_CHAIN;
+
+  // ponytail: alleen 404 (model verdwenen) triggert fallback; andere fouten gooien direct door.
+  const isModelGone = (error: unknown): boolean =>
+    error instanceof Anthropic.APIError && error.status === 404;
+
+  async function createWithFallback(
+    models: string[],
+    params: Omit<Anthropic.MessageCreateParamsNonStreaming, 'model'>
+  ): Promise<Anthropic.Message> {
+    let lastError: unknown;
+    for (const model of models) {
+      try {
+        return await anthropic.messages.create({ ...params, model });
+      } catch (error) {
+        if (!isModelGone(error)) throw error;
+        lastError = error;
+        console.error(`Model "${model}" niet gevonden (404) — val terug op volgende model.`);
+      }
+    }
+    throw lastError;
+  }
 
   let speechClient: InstanceType<typeof speech.SpeechClient> | null = null;
   let ttsClient: InstanceType<typeof textToSpeech.TextToSpeechClient> | null = null;
@@ -197,8 +226,7 @@ export function createApp() {
       const sid = typeof res.locals.sessionSid === 'string' ? res.locals.sessionSid : randomUUID();
       const built = buildModePayload({ sid, store: sessionStateStore, input: parsed.data });
 
-      const response = await anthropic.messages.create({
-        model: pickModel(parsed.data.mode),
+      const response = await createWithFallback(pickChain(parsed.data.mode), {
         max_tokens: 1024,
         system: built.systemPrompt,
         messages: built.messages
@@ -219,6 +247,11 @@ export function createApp() {
       return;
     }
 
+    let aborted = false;
+    req.on('close', () => {
+      aborted = true;
+    });
+
     try {
       const sid = typeof res.locals.sessionSid === 'string' ? res.locals.sessionSid : randomUUID();
       const built = buildModePayload({ sid, store: sessionStateStore, input: parsed.data });
@@ -228,35 +261,42 @@ export function createApp() {
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders();
 
-      let aborted = false;
-      req.on('close', () => {
-        aborted = true;
-      });
-
-      const stream = anthropic.messages.stream({
-        model: pickModel(parsed.data.mode),
-        max_tokens: 1024,
-        system: built.systemPrompt,
-        messages: built.messages
-      });
-
       let fullText = '';
+      let streamError: unknown = null;
 
-      stream.on('text', (text) => {
-        if (aborted) return;
-        fullText += text;
-        res.write(`data: ${JSON.stringify({ delta: text })}\n\n`);
-      });
+      // Zolang er nog geen tekst naar de client ging, kunnen we bij een verdwenen
+      // model (404) veilig op het volgende model in de keten overschakelen.
+      for (const model of CHAT_CHAIN) {
+        streamError = null;
+        const stream = anthropic.messages.stream({
+          model,
+          max_tokens: 1024,
+          system: built.systemPrompt,
+          messages: built.messages
+        });
 
-      stream.on('error', (error) => {
-        console.error('Structured AI mode stream error:', error);
-        if (!aborted) {
-          res.write(`data: ${JSON.stringify({ error: 'Er ging iets mis met de AI.' })}\n\n`);
-          res.end();
+        // Fouten komen terug via finalMessage(); deze listener voorkomt een unhandled 'error'.
+        stream.on('error', () => {});
+        stream.on('text', (text) => {
+          if (aborted) return;
+          fullText += text;
+          res.write(`data: ${JSON.stringify({ delta: text })}\n\n`);
+        });
+
+        try {
+          await stream.finalMessage();
+          break;
+        } catch (error) {
+          streamError = error;
+          if (isModelGone(error) && fullText === '' && !aborted) {
+            console.error(`Stream-model "${model}" niet gevonden (404) — val terug op volgende model.`);
+            continue;
+          }
+          throw error;
         }
-      });
+      }
 
-      await stream.finalMessage();
+      if (streamError) throw streamError; // alle modellen uitgefaseerd
 
       if (!aborted) {
         res.write(`data: ${JSON.stringify({ done: true, fullText })}\n\n`);
@@ -266,6 +306,9 @@ export function createApp() {
       console.error('Structured AI mode stream error:', error);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Er ging iets mis met de AI. Probeer het opnieuw.' });
+      } else if (!aborted) {
+        res.write(`data: ${JSON.stringify({ error: 'Er ging iets mis met de AI.' })}\n\n`);
+        res.end();
       } else {
         res.end();
       }
@@ -378,8 +421,7 @@ export function createApp() {
       const casus = await resolveSoepCasus(parsed.data, secret);
       const built = buildSoepPayload(parsed.data, casus);
 
-      const response = await anthropic.messages.create({
-        model: FEEDBACK_MODEL,
+      const response = await createWithFallback(FEEDBACK_CHAIN, {
         max_tokens: 1024,
         system: built.systemPrompt,
         messages: built.messages
@@ -417,8 +459,7 @@ export function createApp() {
 
     try {
       const systemPrompt = buildGenereerSystemPrompt(parsed.data.setting, parsed.data.lengte);
-      const response = await anthropic.messages.create({
-        model: SOEP_GENEREER_MODEL,
+      const response = await createWithFallback(SOEP_GENEREER_CHAIN, {
         max_tokens: parsed.data.lengte === 'uitgebreid' ? 2200 : 1200,
         system: systemPrompt,
         messages: [{ role: 'user', content: 'Genereer nu de casus als JSON.' }]
