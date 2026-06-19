@@ -96,7 +96,7 @@ export function createApp() {
   // ANTHROPIC_MODEL overschrijft beide tegelijk (backward compatible).
   const CHAT_MODEL = process.env.ANTHROPIC_MODEL_CHAT || process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
   const FEEDBACK_MODEL =
-    process.env.ANTHROPIC_MODEL_FEEDBACK || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514';
+    process.env.ANTHROPIC_MODEL_FEEDBACK || process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
   // Casusgeneratie (niveau 4) draait standaard op het goedkope CHAT_MODEL; override met env indien nodig.
   const SOEP_GENEREER_MODEL = process.env.ANTHROPIC_MODEL_SOEP_GENEREER || CHAT_MODEL;
 
